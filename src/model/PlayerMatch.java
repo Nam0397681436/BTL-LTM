@@ -1,67 +1,69 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package model;
 
-/**
- *
- * @author Admin
- */
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Objects;
+
 public class PlayerMatch {
-    private int Id; // tu dong tăng từ đầu 1->10000
-    private int matchId; // Khóa ngoại tới Match
-    private String playerId; // Khóa ngoại tới Player
-    private int score; // Điểm của người chơi trong trận đấu này
-    private boolean isWinner; // Người chơi có phải là người chiến thắng không
-    private boolean isHost; // Có phải chủ phòng không (cho chế độ MULTIPLAYER)
-    // Phương thức khởi tạo
-    public PlayerMatch(int Id, int matchId, String playerId, boolean isHost) {
-        this.Id = Id;
+    private int id;             // PK auto-increment
+    private int matchId;        // FK -> matches.match_id
+    private String playerId;    // FK -> players.player_id
+    private int score;
+    private boolean winner;
+    private boolean host;
+
+    public PlayerMatch() {}
+
+    public PlayerMatch(int id, int matchId, String playerId, int score, boolean winner, boolean host) {
+        this.id = id;
         this.matchId = matchId;
         this.playerId = playerId;
-        this.score = 0;
-        this.isWinner = false;
-        this.isHost = isHost;
+        this.score = score;
+        this.winner = winner;
+        this.host = host;
     }
 
-    public int getMatchId() {
-        return matchId;
+    public static PlayerMatch fromResultSet(ResultSet rs) throws SQLException {
+        return new PlayerMatch(
+                rs.getInt("id"),
+                rs.getInt("match_id"),
+                rs.getString("player_id"),
+                rs.getInt("score"),
+                rs.getInt("is_winner") == 1,
+                rs.getInt("is_host") == 1
+        );
     }
-    
-    public void setMatchId(int matchId) {
-        this.matchId = matchId;
+
+    // Getters & Setters
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+    public int getMatchId() { return matchId; }
+    public void setMatchId(int matchId) { this.matchId = matchId; }
+    public String getPlayerId() { return playerId; }
+    public void setPlayerId(String playerId) { this.playerId = playerId; }
+    public int getScore() { return score; }
+    public void setScore(int score) { this.score = score; }
+    public boolean isWinner() { return winner; }
+    public void setWinner(boolean winner) { this.winner = winner; }
+    public boolean isHost() { return host; }
+    public void setHost(boolean host) { this.host = host; }
+
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof PlayerMatch)) return false;
+        PlayerMatch that = (PlayerMatch) o;
+        return id == that.id;
     }
-    
-    public String getPlayerId() {
-        return playerId;
-    }
-    
-    public void setPlayerId(String playerId) {
-        this.playerId = playerId;
-    }
-    
-    public int getScore() {
-        return score;
-    }
-    
-    public void setScore(int score) {
-        this.score = score;
-    }
-    
-    public boolean isWinner() {
-        return isWinner;
-    }
-    
-    public void setWinner(boolean winner) {
-        isWinner = winner;
-    }
-    
-    public boolean isHost() {
-        return isHost;
-    }
-    
-    public void setHost(boolean host) {
-        isHost = host;
+    @Override public int hashCode() { return Objects.hash(id); }
+
+    @Override public String toString() {
+        return "PlayerMatch{" +
+                "id=" + id +
+                ", matchId=" + matchId +
+                ", playerId='" + playerId + '\'' +
+                ", score=" + score +
+                ", winner=" + winner +
+                ", host=" + host +
+                '}';
     }
 }
