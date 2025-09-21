@@ -1,57 +1,39 @@
 package client.net;
 
 import java.io.*;
-import java.net.Socket;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
 
 public class TcpClient {
-
-    public interface Listener { void onMessage(String line); }
-
     private Socket socket;
-    private ObjectOutputStream out;   // gửi String
-    private ObjectInputStream in;     // nhận String
+    private BufferedReader in;
+    private BufferedWriter out;
 
-    public void connect(String host, int port, Listener listener) throws IOException {
-        socket = new Socket(host, port);
-
-        // QUAN TRỌNG: tạo ObjectOutputStream trước, flush để handshake
-        out = new ObjectOutputStream(socket.getOutputStream());
-        out.flush();
-        in = new ObjectInputStream(socket.getInputStream());
-
-        Thread reader = new Thread(() -> {
-            try {
-                while (!socket.isClosed()) {
-                    Object obj = in.readObject();      // nhận Object
-                    if (obj == null) break;
-                    if (obj instanceof String s) {
-                        if (listener != null) listener.onMessage(s);  // chuyển cho UI/router
-                    }
-                }
-            } catch (EOFException eof) {
-                // socket đóng bình thường
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                closeQuietly();
-            }
-        }, "TcpClient-Reader");
-        reader.setDaemon(true);
-        reader.start();
+    public void connect() throws IOException {
+        String host = System.getProperty("HOST", "127.0.0.1");
+        int port = Integer.getInteger("PORT", 5555);
+        System.out.println("[CONNECT] host=" + host + " port=" + port);
+        socket = new Socket(Proxy.NO_PROXY);                 // tránh SOCKS proxy
+        socket.connect(new InetSocketAddress(host, port), 4000);
+        in  = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+        out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8));
     }
 
-    /** Gửi chuỗi JSON (đã toString() từ JsonObject). */
-    public synchronized void send(String json) throws IOException {
-        if (out == null) throw new IOException("Not connected");
-        out.writeObject(json);
+    public synchronized void send(String jsonLine) throws IOException {
+        if (socket == null || socket.isClosed()) throw new IOException("Not connected");
+        out.write(jsonLine);
+        out.write("\n");  // NDJSON
         out.flush();
     }
 
-    public void close() { closeQuietly(); }
+    public String readLine() throws IOException {
+        if (socket == null) throw new IOException("Not connected");
+        return in.readLine();
+    }
 
-    private void closeQuietly() {
-        try { if (in != null) in.close(); } catch (Exception ignored) {}
-        try { if (out != null) out.close(); } catch (Exception ignored) {}
-        try { if (socket != null) socket.close(); } catch (Exception ignored) {}
+    public void close() {
+        try { in.close(); }  catch (Exception ignore) {}
+        try { out.close(); } catch (Exception ignore) {}
+        try { socket.close(); } catch (Exception ignore) {}
     }
 }

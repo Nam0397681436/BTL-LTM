@@ -1,54 +1,53 @@
 package server;
 
 import model.Player;
-
-import java.util.Collection;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Lưu trạng thái người chơi đang online (in-memory, thread-safe).
- */
 public class OnlineRegistry {
-    public enum Status { IDLE, IN_MATCH }
-
     private static final Map<String, Player> ONLINE = new ConcurrentHashMap<>();
-    private static final Map<String, Status> STATE  = new ConcurrentHashMap<>();
+    private static final Map<String, ClientHandler> SESSIONS = new ConcurrentHashMap<>();
 
-    /** Đánh dấu 1 người chơi đã đăng nhập (mặc định IDLE). */
     public static void add(Player p) {
         if (p == null || p.getPlayerId() == null) return;
         ONLINE.put(p.getPlayerId(), p);
-        STATE.put(p.getPlayerId(), Status.IDLE);
+        broadcastOnlineAdd(p);
     }
 
-    /** Xóa khỏi danh sách online. */
     public static void remove(String playerId) {
         if (playerId == null) return;
         ONLINE.remove(playerId);
-        STATE.remove(playerId);
+        broadcastOnlineRemove(playerId);
+        SESSIONS.remove(playerId);
     }
 
-    /** Toàn bộ người chơi đang online (không gồm offline). */
-    public static Collection<Player> all() {
-        return ONLINE.values();
+    public static Collection<Player> onlinePlayers() { return ONLINE.values(); }
+
+    public static void bindSession(String playerId, ClientHandler h) {
+        if (playerId != null && h != null) SESSIONS.put(playerId, h);
     }
 
-    /** Người này có đang online không? */
-    public static boolean isOnline(String playerId) {
-        return playerId != null && ONLINE.containsKey(playerId);
+    /* -------- broadcast -------- */
+
+    public static void broadcastOnlineAdd(Player p) {
+        var o = new com.google.gson.JsonObject();
+        o.addProperty("type", "ONLINE_ADD");
+        o.addProperty("playerId", p.getPlayerId());
+        o.addProperty("nickname", p.getNickname());
+        multicast(o, p.getPlayerId());
     }
 
-    /** Trạng thái hiện tại (mặc định IDLE). */
-    public static Status statusOf(String playerId) {
-        return STATE.getOrDefault(playerId, Status.IDLE);
+    public static void broadcastOnlineRemove(String playerId) {
+        var o = new com.google.gson.JsonObject();
+        o.addProperty("type", "ONLINE_REMOVE");
+        o.addProperty("playerId", playerId);
+        multicast(o, playerId);
     }
 
-    /** Cập nhật trạng thái (chỉ khi đang online). */
-    public static void setStatus(String playerId, Status status) {
-        if (playerId == null || status == null) return;
-        if (ONLINE.containsKey(playerId)) {
-            STATE.put(playerId, status);
+    private static void multicast(com.google.gson.JsonObject o, String exceptId) {
+        for (var e : SESSIONS.entrySet()) {
+            if (e.getKey().equals(exceptId)) continue;
+            try { e.getValue().send(o); } catch (Exception ignore) {}
         }
     }
 }

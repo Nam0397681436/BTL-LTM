@@ -12,7 +12,9 @@ CREATE TABLE players (
   password    VARCHAR(255) NOT NULL,
   nick_name   VARCHAR(100) NOT NULL,
   total_score INT          DEFAULT 0,
-  total_wins  INT          DEFAULT 0
+  total_wins  INT          DEFAULT 0,
+  UNIQUE KEY uq_players_nickname (nick_name),
+  UNIQUE KEY uq_players_username (username) 
 );
 
 -- 2) Bảng matches
@@ -36,6 +38,3 @@ CREATE TABLE player_matches (
   FOREIGN KEY (match_id) REFERENCES matches(match_id),
   FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
-
-ALTER TABLE players ADD UNIQUE KEY uq_players_username (username);
-
