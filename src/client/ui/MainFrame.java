@@ -4,6 +4,9 @@ import client.JsonUtil;
 import client.net.TcpClient;
 import client.ui.table.ButtonEditor;
 import client.ui.table.ButtonRenderer;
+import model.Match;
+import model.Player;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
@@ -20,16 +23,22 @@ public class MainFrame extends JFrame {
     private final String nickname;
 
     // Bảng người chơi: PlayerId, Player, Status, Action
-    private final DefaultTableModel playersModel =
-            new DefaultTableModel(new Object[]{"PlayerId","Player","Status","Action"}, 0) {
-                @Override public boolean isCellEditable(int r, int c) { return c == 3; }
-            };
+    private final DefaultTableModel playersModel = new DefaultTableModel(
+            new Object[] { "PlayerId", "Player", "Status", "Action" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return c == 3;
+        }
+    };
 
     // Bảng BXH
-    private final DefaultTableModel lbModel =
-            new DefaultTableModel(new Object[]{"Nickname","TotalScore","Wins"}, 0) {
-                @Override public boolean isCellEditable(int r, int c) { return false; }
-            };
+    private final DefaultTableModel lbModel = new DefaultTableModel(new Object[] { "Nickname", "TotalScore", "Wins" },
+            0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
+    };
 
     private JTable tblPlayers;
     private JTable tblLb;
@@ -39,7 +48,9 @@ public class MainFrame extends JFrame {
 
     public MainFrame(TcpClient tcp, String myPlayerId, String nickname) {
         super("Màn hình chính – " + nickname);
-        this.tcp = tcp; this.myPlayerId = myPlayerId; this.nickname = nickname;
+        this.tcp = tcp;
+        this.myPlayerId = myPlayerId;
+        this.nickname = nickname;
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(900, 560);
@@ -56,7 +67,8 @@ public class MainFrame extends JFrame {
         var btnLogout = new JButton("Logout");
 
         var topLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
-        topLeft.add(btnPlayers); topLeft.add(btnLeaderboard);
+        topLeft.add(btnPlayers);
+        topLeft.add(btnLeaderboard);
 
         var top = new JPanel(new BorderLayout());
         top.add(topLeft, BorderLayout.WEST);
@@ -67,14 +79,18 @@ public class MainFrame extends JFrame {
         var btnCreateRoom = new JButton("Tạo phòng đấu");
         var left = new JPanel();
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
-        left.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
-        left.add(btnHistory); left.add(Box.createVerticalStrut(8)); left.add(btnCreateRoom);
+        left.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        left.add(btnHistory);
+        left.add(Box.createVerticalStrut(8));
+        left.add(btnCreateRoom);
 
         // CENTER: cards (Players / Leaderboard)
         tblPlayers = new JTable(playersModel) {
-            @Override public boolean isCellEditable(int row, int col) {
+            @Override
+            public boolean isCellEditable(int row, int col) {
                 // chỉ cho bấm ở cột Action khi text là "Thách đấu"
-                if (col != 3) return false;
+                if (col != 3)
+                    return false;
                 Object v = getModel().getValueAt(row, 3);
                 return v != null && "Thách đấu".equals(v.toString());
             }
@@ -86,10 +102,10 @@ public class MainFrame extends JFrame {
         tblPlayers.getColumn("Action").setCellRenderer(new ButtonRenderer());
         tblPlayers.getColumn("Action").setCellEditor(new ButtonEditor(e -> {
             // Lắng nghe click của nút trong ô
-            int row = (int) ((JButton)e.getSource()).getClientProperty("row");
-            String targetId   = String.valueOf(playersModel.getValueAt(row, 0));
+            int row = (int) ((JButton) e.getSource()).getClientProperty("row");
+            String targetPlayerId = String.valueOf(playersModel.getValueAt(row, 0));
             String targetName = String.valueOf(playersModel.getValueAt(row, 1));
-            invitePvp(targetId, targetName);
+            invitePvp(targetPlayerId, targetName);
         }));
 
         // Single-click để bấm nút ngay, không cần click 2 lần
@@ -113,8 +129,14 @@ public class MainFrame extends JFrame {
         setContentPane(main);
 
         // Actions
-        btnPlayers.addActionListener(e -> { cards.show(center, "players"); loadPlayers(); });
-        btnLeaderboard.addActionListener(e -> { cards.show(center, "lb"); loadLeaderboard(); });
+        btnPlayers.addActionListener(e -> {
+            cards.show(center, "players");
+            loadPlayers();
+        });
+        btnLeaderboard.addActionListener(e -> {
+            cards.show(center, "lb");
+            loadLeaderboard();
+        });
         btnLogout.addActionListener(e -> sendType("LOGOUT"));
         btnHistory.addActionListener(e -> {
             if (historyFrame == null || !historyFrame.isShowing()) {
@@ -123,19 +145,28 @@ public class MainFrame extends JFrame {
             }
             historyFrame.load();
         });
-        btnCreateRoom.addActionListener(e ->
-                JOptionPane.showMessageDialog(this, "Tạo phòng (ROOM_CREATE) sẽ được bổ sung.",
-                        "Thông báo", JOptionPane.INFORMATION_MESSAGE));
+        btnCreateRoom.addActionListener(e -> {
+            var m = new JsonObject();
+            m.addProperty("type", "CREATE_MULTIPLAYER_ROOM");
+            try {
+                tcp.send(JsonUtil.toJson(m));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        });
     }
 
     /** Bấm 1 lần là hoạt động nút trong cột Action */
     private void enableSingleClickButton(JTable table, int actionCol) {
         table.addMouseListener(new MouseAdapter() {
-            @Override public void mousePressed(MouseEvent e) {
+            @Override
+            public void mousePressed(MouseEvent e) {
                 int row = table.rowAtPoint(e.getPoint());
                 int col = table.columnAtPoint(e.getPoint());
-                if (row < 0 || col != actionCol) return;
-                if (!table.isCellEditable(row, col)) return;
+                if (row < 0 || col != actionCol)
+                    return;
+                if (!table.isCellEditable(row, col))
+                    return;
 
                 if (table.editCellAt(row, col, e)) {
                     Component editor = table.getEditorComponent();
@@ -170,6 +201,7 @@ public class MainFrame extends JFrame {
         cm.getColumn(3).setPreferredWidth(wAction);
         cm.getColumn(3).setMaxWidth(wAction + 30);
     }
+
     private static int textWidth(JTable t, String s) {
         FontMetrics fm = t.getFontMetrics(t.getFont());
         return fm.stringWidth(s);
@@ -177,28 +209,50 @@ public class MainFrame extends JFrame {
 
     // ====== gửi gói tin ======
     private void invitePvp(String toUserId, String toName) {
-        if (toUserId.equals(myPlayerId)) return;
+        if (toUserId.equals(myPlayerId))
+            return;
         var m = new JsonObject();
-        m.addProperty("type","INVITE_PVP");
+        m.addProperty("type", "INVITE_PVP");
         m.addProperty("toUserId", toUserId);
         try {
             tcp.send(JsonUtil.toJson(m));
             JOptionPane.showMessageDialog(this,
                     "Đã gửi lời mời thách đấu tới " + toName + " (" + toUserId + ").",
                     "Thách đấu", JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException ex) { ex.printStackTrace(); }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
+
     private void loadPlayers() {
-        var m = new JsonObject(); m.addProperty("type","LIST_PLAYERS");
-        try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
+        var m = new JsonObject();
+        m.addProperty("type", "LIST_PLAYERS");
+        try {
+            tcp.send(JsonUtil.toJson(m));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
+
     private void loadLeaderboard() {
-        var m = new JsonObject(); m.addProperty("type","GET_LEADERBOARD"); m.addProperty("limit", 50);
-        try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
+        var m = new JsonObject();
+        m.addProperty("type", "GET_LEADERBOARD");
+        m.addProperty("limit", 50);
+        try {
+            tcp.send(JsonUtil.toJson(m));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
+
     private void sendType(String t) {
-        var m = new JsonObject(); m.addProperty("type", t);
-        try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
+        var m = new JsonObject();
+        m.addProperty("type", t);
+        try {
+            tcp.send(JsonUtil.toJson(m));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
     /** Router: nhận dữ liệu server trả về */
@@ -212,14 +266,12 @@ public class MainFrame extends JFrame {
                     JsonArray arr = msg.getAsJsonArray("players");
                     for (var el : arr) {
                         var o = el.getAsJsonObject();
-                        String pid  = o.get("playerId").getAsString();
+                        String pid = o.get("playerId").getAsString();
                         String name = o.get("nickname").getAsString();
-                        String st   = o.get("status").getAsString(); // ONLINE, IN_MATCH, OFFLINE
-                        String actionText =
-                                pid.equals(myPlayerId) ? "Bạn" :
-                                "ONLINE".equals(st)    ? "Thách đấu" :
-                                "IN_MATCH".equals(st)  ? "Trong trận" : "Offline";
-                        playersModel.addRow(new Object[]{ pid, name, labelStatus(st), actionText });
+                        String st = o.get("status").getAsString(); // ONLINE, IN_MATCH, OFFLINE
+                        String actionText = pid.equals(myPlayerId) ? "Bạn"
+                                : "ONLINE".equals(st) ? "Thách đấu" : "IN_MATCH".equals(st) ? "Trong trận" : "Offline";
+                        playersModel.addRow(new Object[] { pid, name, labelStatus(st), actionText });
                     }
                     resizePlayersColumns();
                 }
@@ -228,7 +280,7 @@ public class MainFrame extends JFrame {
                     JsonArray arr = msg.getAsJsonArray("rows");
                     for (var el : arr) {
                         var o = el.getAsJsonObject();
-                        lbModel.addRow(new Object[]{
+                        lbModel.addRow(new Object[] {
                                 o.get("nickname").getAsString(),
                                 o.get("totalScore").getAsInt(),
                                 o.get("totalWins").getAsInt()
@@ -244,15 +296,56 @@ public class MainFrame extends JFrame {
                     JOptionPane.showMessageDialog(this, "Đã đăng xuất!");
                     System.exit(0);
                 }
+                case "CREATE_MULTIPLAYER_ROOM_ACK" -> {
+                    Match match = Match.fromJson(msg.get("match").getAsString());
+                    Player me = Player.fromJson(msg.get("me").getAsString());
+                    this.setVisible(false);
+                    var game = new MultiplayerRoomFRM(match, me, tcp,this);
+                    game.setVisible(true);
+                }
+                case "INVITE_USER" -> {
+                    Player fromPlayer = Player.fromJson(msg.get("fromPlayer").getAsString());
+                    int matchId = msg.get("matchId").getAsInt();
+                    int option = JOptionPane.showConfirmDialog(this,
+                            fromPlayer.getNickname() + " mời bạn chơi game!!. Ban có đồng ý không?",
+                            "Lời mời thách đấu", JOptionPane.YES_NO_OPTION);
+                    if(option == JOptionPane.YES_OPTION) {
+                        var m = new JsonObject();
+                        m.addProperty("type", "INVITE_ACCEPT");
+                        m.addProperty("matchId", matchId);
+                        try {
+                            tcp.send(JsonUtil.toJson(m));
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
+                        }
+                    } else {
+                        var m = new JsonObject();
+                        m.addProperty("type", "INVITE_DECLINE");
+                        m.addProperty("toPlayerId", fromPlayer.getPlayerId());
+                        try {
+                            tcp.send(JsonUtil.toJson(m));
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                } 
+                case "MATCH_UPDATED" -> {
+                    Match match = Match.fromJson(msg.get("match").getAsString());
+                    Player me = Player.fromJson(msg.get("me").getAsString());
+                    this.setVisible(false);
+                    var game = new MultiplayerRoomFRM(match, me, tcp,this);
+                    game.setVisible(true);
+                }
             }
-        } catch (Exception ignore) {}
+        } catch (Exception ignore) {
+        }
     }
 
     private static String labelStatus(String st) {
         return switch (st) {
-            case "ONLINE"   -> "Online";
+            case "ONLINE" -> "Online";
             case "IN_MATCH" -> "Trong trận";
-            case "OFFLINE"  -> "Offline";
+            case "OFFLINE" -> "Offline";
             default -> st;
         };
     }

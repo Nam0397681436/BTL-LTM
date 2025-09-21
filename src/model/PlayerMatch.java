@@ -4,63 +4,106 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
 
-public class PlayerMatch {
-    private int id;             // PK auto-increment
-    private int matchId;        // FK -> matches.match_id
-    private String playerId;    // FK -> players.player_id
+public class PlayerMatch implements Comparable<PlayerMatch> {
+    private int id; // PK auto-increment
+    private Player player; // FK -> players.player_id
     private int score;
     private boolean winner;
     private boolean host;
+    private String inputAnswer;
 
-    public PlayerMatch() {}
+    public PlayerMatch() {
+    }
 
-    public PlayerMatch(int id, int matchId, String playerId, int score, boolean winner, boolean host) {
+    public PlayerMatch(int id, Player player, int score, boolean winner, boolean host) {
         this.id = id;
-        this.matchId = matchId;
-        this.playerId = playerId;
+        this.player = player;
         this.score = score;
         this.winner = winner;
         this.host = host;
-    }
-
-    public static PlayerMatch fromResultSet(ResultSet rs) throws SQLException {
-        return new PlayerMatch(
-                rs.getInt("id"),
-                rs.getInt("match_id"),
-                rs.getString("player_id"),
-                rs.getInt("score"),
-                rs.getInt("is_winner") == 1,
-                rs.getInt("is_host") == 1
-        );
+        this.inputAnswer = null;
     }
 
     // Getters & Setters
-    public int getId() { return id; }
-    public void setId(int id) { this.id = id; }
-    public int getMatchId() { return matchId; }
-    public void setMatchId(int matchId) { this.matchId = matchId; }
-    public String getPlayerId() { return playerId; }
-    public void setPlayerId(String playerId) { this.playerId = playerId; }
-    public int getScore() { return score; }
-    public void setScore(int score) { this.score = score; }
-    public boolean isWinner() { return winner; }
-    public void setWinner(boolean winner) { this.winner = winner; }
-    public boolean isHost() { return host; }
-    public void setHost(boolean host) { this.host = host; }
+    public int getPlayerId() {
+        return id;
+    }
 
-    @Override public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof PlayerMatch)) return false;
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public Player getPlayer() {
+        return player;
+    }
+
+    public void setPlayer(Player player) {
+        this.player = player;
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public void setScore(int score) {
+        this.score = score;
+    }
+
+    public boolean isWinner() {
+        return winner;
+    }
+
+    public void setWinner(boolean winner) {
+        this.winner = winner;
+    }
+
+    public boolean isHost() {
+        return host;
+    }
+
+    public void setHost(boolean host) {
+        this.host = host;
+    }
+
+
+    public int getId() {
+        return id;
+    }
+
+    public String getInputAnswer() {
+        return inputAnswer;
+    }
+
+    public void setInputAnswer(String inputAnswer) {
+        this.inputAnswer = inputAnswer;
+    }
+
+    @Override
+    public int compareTo(PlayerMatch other) {
+        
+        return Integer.compare(other.getScore(), this.getScore());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof PlayerMatch))
+            return false;
         PlayerMatch that = (PlayerMatch) o;
         return id == that.id;
     }
-    @Override public int hashCode() { return Objects.hash(id); }
 
-    @Override public String toString() {
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+
+    @Override
+    public String toString() {
         return "PlayerMatch{" +
                 "id=" + id +
-                ", matchId=" + matchId +
-                ", playerId='" + playerId + '\'' +
+                ", player=" + player +
                 ", score=" + score +
                 ", winner=" + winner +
                 ", host=" + host +

@@ -2,29 +2,39 @@ package server;
 
 import model.Player;
 
+import java.io.ObjectOutputStream;
 import java.util.Collection;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import client.net.TcpClient;
 
 /**
  * Lưu trạng thái người chơi đang online (in-memory, thread-safe).
  */
 public class OnlineRegistry {
-    public enum Status { IDLE, IN_MATCH }
+    public enum Status {
+        IDLE, 
+        IN_MATCH
+    }
 
     private static final Map<String, Player> ONLINE = new ConcurrentHashMap<>();
-    private static final Map<String, Status> STATE  = new ConcurrentHashMap<>();
+    private static final Map<String, Status> STATE = new ConcurrentHashMap<>();
+    private static final Map<String, ObjectOutputStream> CLIENTS = new ConcurrentHashMap<>();
 
     /** Đánh dấu 1 người chơi đã đăng nhập (mặc định IDLE). */
-    public static void add(Player p) {
-        if (p == null || p.getPlayerId() == null) return;
+    public static void add(Player p, ObjectOutputStream client) {
+        if (p == null || p.getPlayerId() == null)
+            return;
         ONLINE.put(p.getPlayerId(), p);
+        CLIENTS.put(p.getPlayerId(), client);
         STATE.put(p.getPlayerId(), Status.IDLE);
     }
 
     /** Xóa khỏi danh sách online. */
     public static void remove(String playerId) {
-        if (playerId == null) return;
+        if (playerId == null)
+            return;
         ONLINE.remove(playerId);
         STATE.remove(playerId);
     }
@@ -44,9 +54,19 @@ public class OnlineRegistry {
         return STATE.getOrDefault(playerId, Status.IDLE);
     }
 
+    /** Lấy client của người chơi. */
+    public static ObjectOutputStream clientOf(String playerId) {
+        return CLIENTS.get(playerId);
+    }
+
+    public static List<ObjectOutputStream> getClients() {
+        return new ArrayList<>(CLIENTS.values());
+    }
+
     /** Cập nhật trạng thái (chỉ khi đang online). */
     public static void setStatus(String playerId, Status status) {
-        if (playerId == null || status == null) return;
+        if (playerId == null || status == null)
+            return;
         if (ONLINE.containsKey(playerId)) {
             STATE.put(playerId, status);
         }

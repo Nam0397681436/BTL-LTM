@@ -5,10 +5,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DAO {
-    private static final String URL  =
-        "jdbc:mysql://127.0.0.1:3306/game_service?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
-    private static final String USER = System.getProperty("DB_USER", "game_user");
-    private static final String PASS = System.getProperty("DB_PASS", "game123!");
+    private static final String URL  ="jdbc:mysql://localhost:3306/ltm?autoReconnect=true&useSSL=false";
+    private static final String USER = System.getProperty("DB_USER", "root");
+    private static final String PASS = System.getProperty("DB_PASS", "");
 
     static {
         try { Class.forName("com.mysql.cj.jdbc.Driver"); }
