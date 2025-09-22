@@ -224,7 +224,7 @@ public class PlayerDAO {
     }
     
     /**
-     * Cộng điểm/thắng sau khi kết thúc trận (tiện ích nếu cần).
+     * Cộng điểm/thắng sau khi kết thúc trận.
      */
     public void addScoreAndWins(String playerId, int scoreDelta, int winDelta) throws SQLException {
         String sql = """
@@ -241,11 +241,9 @@ public class PlayerDAO {
         }
     }
 
-    /* ================== (Tùy chọn) Stub cho status ==================
-       Nếu sau này bạn thêm cột trạng thái (VD: is_online TINYINT), hãy
-       đổi nội dung method dưới cho phù hợp. Hiện tại DB không có -> NO-OP. */
+    /* ================== Status Player ==================
+    */
     public void updateStatusNoop(String playerId, String status) throws SQLException {
-        // NO-OP để giữ API thống nhất; server quản lý realtime ở bộ nhớ.
         try (Connection ignored = getConn()) {
             // intentionally empty
         }
