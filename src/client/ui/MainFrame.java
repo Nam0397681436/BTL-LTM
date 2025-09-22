@@ -2,6 +2,7 @@ package client.ui;
 
 import client.ClientApp;
 import client.JsonUtil;
+import client.ui.HistoryFrame;
 import client.net.TcpClient;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -21,6 +22,8 @@ public class MainFrame extends JFrame {
     private final TcpClient tcp;
     private final String myPlayerId;
     private final String nickname;
+    private client.ui.HistoryFrame historyFrame;
+    
 
     // Bảng người chơi online (3 cột)
     private final DefaultTableModel playersModel =
@@ -112,7 +115,6 @@ public class MainFrame extends JFrame {
         center.add(new JScrollPane(tblLb), "lb");
         cards.show(center, "players");
 
-        // panel trái đẹp
         JPanel left = buildLeftPane();
 
         var main = new JPanel(new BorderLayout());
@@ -143,7 +145,6 @@ public class MainFrame extends JFrame {
     }
      
 
-    /** Panel trái đã “làm đẹp” */
     private JPanel buildLeftPane() {
         var wrap = new JPanel();
         wrap.setLayout(new BoxLayout(wrap, BoxLayout.Y_AXIS));
@@ -162,7 +163,16 @@ public class MainFrame extends JFrame {
 
         JButton btnHistory = softButton("Xem lịch sử đấu", "FileView.directoryIcon");
         JButton btnCreate = softButton("Tạo phòng đấu", "FileView.computerIcon");
-        btnHistory.addActionListener(e -> JOptionPane.showMessageDialog(this, "HistoryFrame sẽ bổ sung."));
+        btnHistory.addActionListener(e -> {
+            var m = new com.google.gson.JsonObject();
+            m.addProperty("type","GET_HISTORY");
+            m.addProperty("limit",100);
+            try { tcp.send(client.JsonUtil.toJson(m)); }
+            catch(Exception ex) {
+                JOptionPane.showMessageDialog(this, "Mạng lỗi:" + ex.getMessage(),
+                        "Lỗi", JOptionPane.ERROR_MESSAGE);
+            }
+        });
         btnCreate.addActionListener(e -> JOptionPane.showMessageDialog(this, "ROOM_CREATE sẽ bổ sung."));
         cardActions.add(btnHistory);
         cardActions.add(Box.createVerticalStrut(8));
@@ -330,6 +340,80 @@ public class MainFrame extends JFrame {
                                 o.get("totalWins").getAsInt()
                         });
                     }
+                }
+
+                case "HISTORY" -> {
+                    com.google.gson.JsonArray rows = msg.getAsJsonArray("rows");
+
+                    SwingUtilities.invokeLater(() -> {
+                        try {
+                            // 1) Tạo instance HistoryFrame đúng constructor
+                            if (historyFrame == null) {
+                                java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
+                                HistoryFrame hf;
+                                try {
+                                    // Ưu tiên ctor (Frame, boolean) nếu có (thường là JDialog sinh từ NetBeans)
+                                    java.lang.reflect.Constructor<HistoryFrame> c =
+                                            HistoryFrame.class.getConstructor(java.awt.Frame.class, boolean.class);
+                                    java.awt.Frame f = (owner instanceof java.awt.Frame) ? (java.awt.Frame) owner : null;
+                                    hf = c.newInstance(f, true);
+                                } catch (NoSuchMethodException e) {
+                                    // Không có ctor (Frame, boolean) -> dùng ctor rỗng
+                                    hf = HistoryFrame.class.getDeclaredConstructor().newInstance();
+                                }
+                                historyFrame = hf;
+                                historyFrame.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+                            }
+
+                                // 2) Nạp dữ liệu: gọi đúng hàm mà HistoryFrame của bạn đang có
+                            // Nếu HistoryFrame có public void load(JsonArray rows)
+                            try {
+                                var m = HistoryFrame.class.getMethod("load", com.google.gson.JsonArray.class);
+                                m.invoke(historyFrame, rows);
+                            } catch (NoSuchMethodException noLoad) {
+                                // Fallback: nếu không có load(JsonArray), chuyển về List<Object[]> và gọi setData(List)
+                                java.util.List<Object[]> table = new java.util.ArrayList<>();
+                                for (int i = 0; i < rows.size(); i++) {
+                                    var o = rows.get(i).getAsJsonObject();
+                                    int    matchId = o.get("matchId").getAsInt();
+                                    String mode    = o.get("mode").getAsString();
+                                    String start   = o.get("startTime").isJsonNull() ? "" : o.get("startTime").getAsString();
+                                    String end     = o.get("endTime").isJsonNull()   ? "" : o.get("endTime").getAsString();
+                                    int    score   = o.get("score").getAsInt();
+                                    String result  = o.get("isWinner").getAsBoolean() ? "WIN" : "LOSE";
+                                    table.add(new Object[]{ matchId, mode, start, end, score, result });
+                                    }
+                                    try {
+                                        var m2 = HistoryFrame.class.getMethod("setData", java.util.List.class);
+                                    m2.invoke(historyFrame, table);
+                                } catch (NoSuchMethodException noSetData) {
+                                    // Fallback cuối: bơm thẳng vào JTable tên tblHistory nếu có
+                                    try {
+                                        var fld = HistoryFrame.class.getDeclaredField("tblHistory");
+                                        fld.setAccessible(true);
+                                        javax.swing.JTable tbl = (javax.swing.JTable) fld.get(historyFrame);
+                                        javax.swing.table.DefaultTableModel model =
+                                                    (javax.swing.table.DefaultTableModel) tbl.getModel();
+                                           model.setRowCount(0);
+                                        for (Object[] r : table) model.addRow(r);
+                                    } catch (NoSuchFieldException nf) {
+                                        System.err.println("[HISTORY] Không tìm thấy load(JsonArray)/setData(List) và cũng không có JTable 'tblHistory'.");
+                                    }
+                                }
+                            }
+
+                            // 3) Hiển thị
+                            historyFrame.setLocationRelativeTo(this);
+                            historyFrame.setVisible(true);
+                            historyFrame.toFront();
+
+                        } catch (Throwable t) {
+                            t.printStackTrace();
+                            javax.swing.JOptionPane.showMessageDialog(this,
+                                    "Không thể mở lịch sử đấu: " + t.getMessage(),
+                                    "Lỗi UI", javax.swing.JOptionPane.ERROR_MESSAGE);
+                        }
+                    });
                 }
                 case "LOGOUT_OK" -> {
                     JOptionPane.showMessageDialog(this, "Đã đăng xuất!");

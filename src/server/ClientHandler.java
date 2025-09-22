@@ -46,14 +46,14 @@ public class ClientHandler implements Runnable {
             switch (type) {
                 case "PING" -> { var o = new JsonObject(); o.addProperty("type","PONG"); send(o); }
 
-                /* ---------- AUTH ---------- */
+                /* ---------- Đăng nhập ---------- */
                 case "AUTH_LOGIN" -> {
                     String u = msg.get("username").getAsString();
                     String p = msg.get("password").getAsString();
                     System.out.println("[AUTH_LOGIN] u=" + u);
-                    var op = dao.login(u, p);
-                    if (op.isEmpty()) { send(err("Sai username hoặc mật khẩu")); break; }
-                    me = op.get();
+                    model.Player op = dao.login(u, p);
+                    if (p == null || p.isBlank() || u == null || u.isBlank()) { send(err("Sai username hoặc mật khẩu")); break; }
+                    me = op;
                     OnlineRegistry.add(me);
                     OnlineRegistry.bindSession(me.getPlayerId(), this);
                     var ok = new JsonObject();
@@ -62,7 +62,7 @@ public class ClientHandler implements Runnable {
                     ok.addProperty("nickname", me.getNickname());
                     send(ok);
                 }
-
+                /* ---------- Đăng kí ---------- */
                 case "AUTH_REGISTER" -> {
                     String u = msg.get("username").getAsString();
                     String p = msg.get("password").getAsString();
@@ -111,7 +111,7 @@ public class ClientHandler implements Runnable {
                 /* ---------- BXH ---------- */
                 case "GET_LEADERBOARD" -> {
                     int limit = msg.has("limit") ? msg.get("limit").getAsInt() : 50;
-                    var rows = dao.leaderboard(limit);
+                    var rows = dao.getLeaderboard(limit);
                     JsonArray arr = new JsonArray();
                     for (var p : rows) {
                         JsonObject o = new JsonObject();
@@ -130,8 +130,10 @@ public class ClientHandler implements Runnable {
                 case "GET_HISTORY" -> {
                     int limit = msg.has("limit") ? msg.get("limit").getAsInt() : 50;
                     if (me == null) { send(err("NOT_AUTH")); break; }
-                    var rows = dao.history(me.getPlayerId(), limit);
-                    JsonArray arr = new JsonArray();
+                    
+                    var rows = dao.getHistory(me.getPlayerId(), limit);
+                    var arr = new com.google.gson.JsonArray();
+
                     for (var r : rows) {
                         JsonObject o = new JsonObject();
                         o.addProperty("matchId", ((Number) r.get("matchId")).intValue());
@@ -139,7 +141,11 @@ public class ClientHandler implements Runnable {
                         o.addProperty("startTime", String.valueOf(r.get("startTime")));
                         o.addProperty("endTime", String.valueOf(r.get("endTime")));
                         o.addProperty("score", ((Number) r.get("score")).intValue());
-                        o.addProperty("result", ((Boolean) r.get("isWinner")) ? "WIN" : "LOSE");
+                        
+                        String result = String.valueOf(r.get("isWinner"));
+                        o.addProperty("result", result);
+                        o.addProperty("isWinner", "WIN".equalsIgnoreCase(result));
+                        
                         arr.add(o);
                     }
                     JsonObject out = new JsonObject();
