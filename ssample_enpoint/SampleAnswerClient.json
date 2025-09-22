@@ -1,0 +1,15 @@
+[
+    {
+    "type":"ANSWER_SOLO",
+    "playerId":"p02863",
+    "answer":"dgthhstt",
+    "round":2,
+    "matchId":"M001"
+},
+{
+    "type":"EXIT_MATCH",
+    "type_match":"SOLO",
+    "playerId":"p02863",
+    "matchId":"M001"
+}
+]

@@ -10,6 +10,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.Map;
+import model.Match;
+import server.HandelMatchSolo;
 
 /**
  * Xử lý 1 client TCP.
@@ -175,7 +178,19 @@ public class ClientHandler implements Runnable {
                     out.addProperty("ok", true);
                     send(out);
                 }
-
+                case "START_GAME_SOLO" ->{
+                    server.MatchOn.addMatch(msg.get("matchId").getAsString(),msg.toString());
+                    HandelMatchSolo handelMatchSolo = server.MatchOn.getSoloMatch(msg.get("matchId").getAsString());
+                    handelMatchSolo.getQuestionRoundTiepTheo();
+                }
+                case "ANSWER_SOLO" ->{
+                    HandelMatchSolo handelMatchSolo = server.MatchOn.getSoloMatch(msg.get("matchId").getAsString());
+                    handelMatchSolo.TinhDiemTranDau(msg.toString(),handelMatchSolo.getQuestionRoundTiepTheo());
+                }
+                case "EXIT_MATCH" ->{
+                    //xử lý thắng thua khi có người chơi thoát trận
+                    // xử lý phần mất kết nối phần khác
+                }
                 default -> send(err("Unknown type: " + type));
             }
         } catch (Exception e) {

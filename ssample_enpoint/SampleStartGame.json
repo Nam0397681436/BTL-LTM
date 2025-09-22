@@ -1,0 +1,25 @@
+[   {
+        "type":"START_GAME_SOLO",
+        "PLAYER_INVITE":"P2084",
+        "PLAYER":"P45244"
+    },
+    {
+        "type":"QUESTION",
+        "questtion":"jhytsfa",
+        "round":1,
+        "matchId":"M001"
+    },
+    {
+        "type":"BANG_DIEM",
+        "player1":{
+            "playerId":"P2084",
+            "Nickname":"Nguyễn Văn A",
+            "point":10
+        },
+        "player2":{
+            "playerId":"P45244",
+            "Nickname":"Nguyễn Văn B",
+            "point":5
+        }
+    }
+]

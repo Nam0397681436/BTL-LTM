@@ -15,7 +15,7 @@ public class ClientApp {
     public static void main(String[] args) {
         // Cho phép cấu hình host/port khi chạy:
         //   mvn -Dexec.mainClass=client.ClientApp -DHOST=127.0.0.1 -DPORT=5555 exec:java
-        final String host = System.getProperty("HOST", "127.0.0.1");
+        final String host = System.getProperty("HOST", "26.172.144.160");
         final int port = Integer.parseInt(System.getProperty(
                 "PORT", (args != null && args.length > 0) ? args[0] : "5555"));
 

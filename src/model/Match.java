@@ -4,7 +4,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
+import java.util.ArrayList;
 import java.util.Objects;
+import java.util.Collections;
 
 public class Match {
     private int matchId;              // tự tăng
@@ -12,6 +14,7 @@ public class Match {
     private String creatorId;         // player_id người tạo (lưu dạng String cho an toàn DB)
     private Date startTime;
     private Date endTime;
+    private ArrayList<PlayerMatch> playerMatches;
 
     public enum MatchType { ONE_VS_ONE, MULTIPLAYER }
 
@@ -23,6 +26,21 @@ public class Match {
         this.creatorId = creatorId;
         this.startTime = startTime;
         this.endTime = endTime;
+    }
+    public void addPlayerMatch(PlayerMatch playerMatch) {
+        this.playerMatches.add(playerMatch);
+    }
+    public void removePlayerMatch(PlayerMatch playerMatch) {
+        this.playerMatches.remove(playerMatch);
+    }
+    public ArrayList<PlayerMatch> getPlayerMatches() {
+        return playerMatches;
+    }
+    public void setPlayerMatches(ArrayList<PlayerMatch> playerMatches) {
+        this.playerMatches = playerMatches;
+    }
+    public void sapXepBangDiem(){
+        Collections.sort(this.playerMatches, (a, b) -> b.getScore() - a.getScore());
     }
 
     public static Match fromResultSet(ResultSet rs) throws SQLException {
