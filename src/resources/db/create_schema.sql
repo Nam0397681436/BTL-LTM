@@ -33,7 +33,7 @@ CREATE TABLE player_matches (
   match_id  INT NOT NULL,
   player_id VARCHAR(20) NOT NULL,
   score     INT DEFAULT 0,
-  is_winner VARCHAR(01) NOT NULL DEFAULT 'LOSE',
+  is_winner VARCHAR(10) NOT NULL DEFAULT 'LOSE',
   FOREIGN KEY (match_id) REFERENCES matches(match_id),
   FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
