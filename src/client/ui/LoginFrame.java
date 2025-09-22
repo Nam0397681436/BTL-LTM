@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class LoginFrame extends JFrame {
     private final TcpClient tcp;
 
-    // panel login gốc & panel đăng ký nhúng (nếu bạn dùng cơ chế embedded)
+    // panel login gốc & panel đăng ký nhúng 
     private JPanel loginRoot;
     private JPanel regEmbedded;
 
@@ -30,7 +30,7 @@ public class LoginFrame extends JFrame {
         setSize(460, 260);
         setLocationRelativeTo(null);
 
-        renderLoginUI();                 // UI mới (đối xứng, gọn)
+        renderLoginUI();                 
         ClientApp.setMessageHandler(this::handleLine); // handler mặc định
     }
 
@@ -169,7 +169,7 @@ public class LoginFrame extends JFrame {
         } catch (Exception ignore) {}
     }
 
-    /* ======= Nếu bạn đã dùng cơ chế “không mở cửa sổ mới”, ta nhúng RegisterPanel vào đây ======= */
+    /* ======= Điều hướng sang Register ======= */
     private void switchToRegister() {
         if (regEmbedded == null) {
             regEmbedded = RegisterFrame.createEmbedded(
