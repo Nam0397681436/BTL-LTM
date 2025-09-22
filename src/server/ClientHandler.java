@@ -53,7 +53,7 @@ public class ClientHandler implements Runnable {
                     System.out.println("[AUTH_LOGIN] u=" + u);
                     model.Player op = dao.login(u, p);
                     if (p == null || p.isBlank() || u == null || u.isBlank()) { send(err("Sai username hoặc mật khẩu")); break; }
-                    me = op;
+                    this.me = op;
                     OnlineRegistry.add(me);
                     OnlineRegistry.bindSession(me.getPlayerId(), this);
                     var ok = new JsonObject();

@@ -419,8 +419,30 @@ public class MainFrame extends JFrame {
                     JOptionPane.showMessageDialog(this, "Đã đăng xuất!");
                     System.exit(0);
                 }
-                case "AUTH_ERR" -> JOptionPane.showMessageDialog(this,
-                        msg.get("reason").getAsString(), "Lỗi", JOptionPane.ERROR_MESSAGE);
+                case "AUTH_ERR" -> {
+                    String reason = msg.has("reason") ? msg.get("reason").getAsString() : "";
+                    if ("INVALID_CREDENTIALS".equals(reason)) {
+                        javax.swing.JOptionPane.showMessageDialog(
+                            this,
+                            "Sai tài khoản / mật khẩu",
+                            "Đăng nhập thất bại",
+                            javax.swing.JOptionPane.ERROR_MESSAGE
+                        );
+                    } else {
+                        javax.swing.JOptionPane.showMessageDialog(
+                            this,
+                            "Đăng nhập thất bại",
+                            "Lỗi",
+                            javax.swing.JOptionPane.ERROR_MESSAGE
+                        );
+                    }
+                }
+                case "SERVER_ERROR" -> {
+                    String m = msg.has("message") ? msg.get("message").getAsString() : "Lỗi máy chủ";
+                    javax.swing.JOptionPane.showMessageDialog(
+                        this, m, "Đăng nhập thất bại", javax.swing.JOptionPane.ERROR_MESSAGE
+                    );
+                }
             }
         } catch (Exception ignore) {}
     }
