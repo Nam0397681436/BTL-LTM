@@ -68,7 +68,6 @@ public class ClientApp {
                 try { TCP.close(); } catch (Exception ignore) {}
                 // Thông báo nhẹ cho người dùng nếu đang ở MainFrame
                 SwingUtilities.invokeLater(() -> {
-                    // Tuỳ bạn: có thể show popup “Mất kết nối” hoặc im lặng
                 });
             }
         }, "tcp-reader");

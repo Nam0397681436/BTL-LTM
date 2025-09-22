@@ -471,7 +471,7 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /** Editor nhớ modelRow để callback không phải lấy từ e.getSource() */
+
     private static class ButtonEditor extends AbstractCellEditor
             implements TableCellEditor, java.awt.event.ActionListener {
 

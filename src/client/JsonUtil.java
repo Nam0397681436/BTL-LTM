@@ -1,4 +1,4 @@
-package client; // hoặc server tương ứng
+package client; 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 

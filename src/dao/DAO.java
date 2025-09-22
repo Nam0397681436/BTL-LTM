@@ -18,6 +18,5 @@ public class DAO {
         return DriverManager.getConnection(url(), user(), pass());
     }
 
-    // Cho code cũ đang gọi instance method
     public Connection getConnection() throws SQLException { return get(); }
 }

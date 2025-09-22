@@ -9,7 +9,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Vẫn giữ bản Frame; bên dưới có Panel nhúng để LoginFrame dùng nếu muốn. */
 public class RegisterFrame extends JFrame {
     private final TcpClient tcp;
     private JTextField tfUser, tfNick;
@@ -26,7 +25,7 @@ public class RegisterFrame extends JFrame {
         setSize(460, 260);
         setLocationRelativeTo(null);
 
-        render();                                // UI mới (đối xứng, gọn)
+        render();                              
         ClientApp.setMessageHandler(this::handleLine);
     }
 
@@ -148,13 +147,12 @@ public class RegisterFrame extends JFrame {
                     if (timeoutTimer != null) timeoutTimer.stop();
                     setWaiting(false);
                     JOptionPane.showMessageDialog(this, "Đăng ký thành công! Bạn đã được đăng nhập.");
-                    // (Nếu dùng frame riêng: LoginFrame đang sống sẽ bắt AUTH_OK để mở MainFrame)
                 }
             }
         } catch (Exception ignore) {}
     }
 
-    /* =================== Panel đăng ký nhúng (nếu cần dùng) =================== */
+    /* =================== Panel đăng ký nhúng  =================== */
     public static JPanel createEmbedded(
             TcpClient tcp,
             java.util.function.BiConsumer<String,String> onSuccess,
