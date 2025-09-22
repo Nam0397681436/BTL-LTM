@@ -27,14 +27,23 @@ public class ClientHandler implements Runnable {
     @Override public void run() {
         try {
             String line;
-            while ((line = in.readLine()) != null) handle(line);
+            while ((line = in.readLine()) != null) {
+                handle(line);
+            }
         } catch (IOException ignore) {
         } finally {
-            if (me != null) OnlineRegistry.remove(me.getPlayerId());
+            try {
+                if (me != null) OnlineRegistry.remove(me.getPlayerId());
+            } catch (Exception ignore2) {}
             try { in.close(); }  catch (Exception ignore2) {}
             try { out.close(); } catch (Exception ignore2) {}
             try { socket.close(); } catch (Exception ignore2) {}
         }
+    }
+
+    /** CHỈNH: helper check đăng nhập – đặt ở cấp class, không để trong handle() */
+    private boolean allowWithoutAuth(String type) {
+        return "LOGIN".equals(type) || "AUTH_REGISTER".equals(type) || "PING".equals(type);
     }
 
     private void handle(String line) {
@@ -43,25 +52,46 @@ public class ClientHandler implements Runnable {
             String type = msg.has("type") ? msg.get("type").getAsString() : null;
             if (type == null) { send(err("MISSING_TYPE")); return; }
 
+            // CHỈNH: chặn khi chưa đăng nhập cho các type cần auth
+            if (!allowWithoutAuth(type) && me == null) {
+                send(err("Sai tài khoản hoặc mật khẩu"));
+                return;
+            }
+
             switch (type) {
-                case "PING" -> { var o = new JsonObject(); o.addProperty("type","PONG"); send(o); }
+                case "PING" -> {
+                    var o = new JsonObject();
+                    o.addProperty("type", "PONG");
+                    send(o);
+                }
 
                 /* ---------- Đăng nhập ---------- */
-                case "AUTH_LOGIN" -> {
-                    String u = msg.get("username").getAsString();
-                    String p = msg.get("password").getAsString();
-                    System.out.println("[AUTH_LOGIN] u=" + u);
-                    model.Player op = dao.login(u, p);
-                    if (p == null || p.isBlank() || u == null || u.isBlank()) { send(err("Sai username hoặc mật khẩu")); break; }
-                    this.me = op;
-                    OnlineRegistry.add(me);
-                    OnlineRegistry.bindSession(me.getPlayerId(), this);
-                    var ok = new JsonObject();
-                    ok.addProperty("type", "AUTH_OK");
-                    ok.addProperty("playerId", me.getPlayerId());
-                    ok.addProperty("nickname", me.getNickname());
-                    send(ok);
+                case "LOGIN" -> {
+                    String username = msg.get("username").getAsString();
+                    String password = msg.get("password").getAsString();
+                    try {
+                        Player found = dao.login(username, password); // trả về Player hoặc null
+                        if (found == null) {
+                            // Sai thông tin: KHÔNG đụng this.me
+                            send(err("Sai tài khoản hoặc mật khẩu"));
+                        } else {
+                            // Thành công
+                            this.me = found;
+                            OnlineRegistry.add(me);
+                            OnlineRegistry.bindSession(me.getPlayerId(), this);
+
+                            var ok = new JsonObject();
+                            ok.addProperty("type", "AUTH_OK");
+                            ok.addProperty("playerId", me.getPlayerId());
+                            ok.addProperty("nickname", me.getNickname());
+                            send(ok);
+                        }
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        send(err("SERVER_ERROR: " + ex.getMessage()));
+                    }
                 }
+
                 /* ---------- Đăng kí ---------- */
                 case "AUTH_REGISTER" -> {
                     String u = msg.get("username").getAsString();
@@ -129,8 +159,7 @@ public class ClientHandler implements Runnable {
                 /* ---------- HISTORY ---------- */
                 case "GET_HISTORY" -> {
                     int limit = msg.has("limit") ? msg.get("limit").getAsInt() : 50;
-                    if (me == null) { send(err("NOT_AUTH")); break; }
-                    
+                    // me đã đảm bảo != null nhờ chặn ở đầu
                     var rows = dao.getHistory(me.getPlayerId(), limit);
                     var arr = new com.google.gson.JsonArray();
 
@@ -141,11 +170,11 @@ public class ClientHandler implements Runnable {
                         o.addProperty("startTime", String.valueOf(r.get("startTime")));
                         o.addProperty("endTime", String.valueOf(r.get("endTime")));
                         o.addProperty("score", ((Number) r.get("score")).intValue());
-                        
+
                         String result = String.valueOf(r.get("isWinner"));
                         o.addProperty("result", result);
                         o.addProperty("isWinner", "WIN".equalsIgnoreCase(result));
-                        
+
                         arr.add(o);
                     }
                     JsonObject out = new JsonObject();
@@ -167,6 +196,7 @@ public class ClientHandler implements Runnable {
             e.printStackTrace();
             send(err("SERVER_ERROR: " + e.getMessage()));
         }
+        // CHÚ Ý: không unregister ở đây nữa, đã làm trong finally của run()
     }
 
     /* gửi JSON NDJSON */
