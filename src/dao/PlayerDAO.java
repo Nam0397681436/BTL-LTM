@@ -2,159 +2,250 @@ package dao;
 
 import model.Player;
 
-import java.sql.Connection;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 
-public class PlayerDAO extends DAO {
+/**
+ * - Sinh player_id 6 chữ số (000001, 000002, ...) trong transaction.
+ * - Đăng ký, đăng nhập, tra cứu, cập nhật điểm/thắng.
+ */
+public class PlayerDAO {
 
-    // ID chỉ gồm CHỮ SỐ (mặc định 6). Đổi 4/5 nếu bạn muốn ngắn hơn.
-    private static final int ID_LENGTH    = 6;
-    private static final int MAX_ATTEMPTS = 25;
-
-    // ---------- AUTH ----------
-    public boolean usernameExists(String username) throws SQLException {
-        try (var c = getConnection();
-             var ps = c.prepareStatement("SELECT 1 FROM players WHERE username=? LIMIT 1")) {
-            ps.setString(1, username);
-            try (var rs = ps.executeQuery()) { return rs.next(); }
-        }
+    private Connection getConn() throws SQLException {
+        return DAO.get();
     }
 
-    public Optional<Player> login(String username, String password) throws SQLException {
+    /* ======================= Helper mapping ======================= */
+
+    private Player map(ResultSet rs) throws SQLException {
+        if (rs == null) return null;
+        Player p = new Player();
+        p.setPlayerId(rs.getString("player_id"));
+        p.setUsername(rs.getString("username"));
+        p.setPassword(rs.getString("password"));
+        p.setNickname(rs.getString("nick_name"));
+        p.setTotalScore(rs.getInt("total_score"));
+        p.setTotalWins(rs.getInt("total_wins"));
+        return p;
+    }
+
+    /**
+     * Sinh id tiếp theo dạng 6 chữ số trong 1 transaction.
+     * Ví dụ: MAX('000135') -> 135 + 1 -> LPAD -> '000136'
+     */
+    private String nextPlayerId(Connection c) throws SQLException {
         String sql = """
-            SELECT player_id, username, nick_name, total_score, total_wins
-            FROM players WHERE username=? AND password=?
-            """;
-        try (var c = getConnection(); var ps = c.prepareStatement(sql)) {
-            ps.setString(1, username);
-            ps.setString(2, sha256(password));
-            try (var rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return Optional.of(new Player(
-                            rs.getString(1), rs.getString(2), rs.getString(3),
-                            rs.getInt(4), rs.getInt(5)
-                    ));
-                }
-                return Optional.empty();
+            SELECT LPAD(IFNULL(MAX(CAST(player_id AS UNSIGNED)), 0) + 1, 6, '0') AS next_id
+            FROM players
+        """;
+        try (PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            rs.next();
+            return rs.getString(1);
+        }
+    }
+    /* ======================= BXH ======================= */
+    public List<model.Player> getLeaderboard(int limit) throws SQLException {
+        String sql = """
+                     SELECT player_id, username, password, nick_name, total_score, total_wins
+                     FROM players
+                     ORDER BY total_score DESC, total_wins DESC, player_id ASC
+                     LIMIT ?
+                     """;
+        List<model.Player> list = new ArrayList<>();
+        try(Connection c = getConn();
+        PreparedStatement ps = c.prepareStatement(sql)){
+            ps.setInt(1, limit);
+            try(ResultSet rs = ps.executeQuery()){
+                while (rs.next()) list.add(map(rs));
             }
         }
+        return list;
     }
-
-    public Player register(String username, String password, String nickname) throws SQLException {
-        try (var c = getConnection()) {
-            String playerId = generateNumericId(c);
-            try (var ps = c.prepareStatement(
-                    "INSERT INTO players(player_id, username, password, nick_name, total_score, total_wins) " +
-                    "VALUES (?, ?, ?, ?, 0, 0)")) {
-                ps.setString(1, playerId);
-                ps.setString(2, username);
-                ps.setString(3, sha256(password));
-                ps.setString(4, nickname);
-                ps.executeUpdate();
-            }
-            return new Player(playerId, username, nickname, 0, 0);
-        }
-    }
-
-    // ---------- PHỤC VỤ UI ----------
-    public List<Player> leaderboard(int limit) throws SQLException {
+    /* ======================= Lịch sử đấu ======================= */
+    public List<Map<String,Object>> getHistory(String playerId, int limit) throws SQLException {
         String sql = """
-            SELECT player_id, username, nick_name, total_score, total_wins
-            FROM players ORDER BY total_score DESC, total_wins DESC
-            LIMIT ?
-            """;
-        try (var c = getConnection(); var ps = c.prepareStatement(sql)) {
-            ps.setInt(1, Math.max(1, limit));
-            try (var rs = ps.executeQuery()) {
-                var list = new ArrayList<Player>();
-                while (rs.next()) {
-                    list.add(new Player(
-                            rs.getString(1), rs.getString(2), rs.getString(3),
-                            rs.getInt(4), rs.getInt(5)
-                    ));
-                }
-                return list;
-            }
-        }
-    }
-
-    /** Lấy tất cả người chơi để ghép trạng thái (ONLINE/OFFLINE/IN_MATCH) ở server. */
-    public List<Player> listAllPlayers() throws SQLException {
-        String sql = """
-            SELECT player_id, username, nick_name, total_score, total_wins
-            FROM players ORDER BY nick_name ASC
-            """;
-        try (var c = getConnection(); var ps = c.prepareStatement(sql); var rs = ps.executeQuery()) {
-            var list = new ArrayList<Player>();
-            while (rs.next()) {
-                list.add(new Player(
-                        rs.getString(1), rs.getString(2), rs.getString(3),
-                        rs.getInt(4), rs.getInt(5)
-                ));
-            }
-            return list;
-        }
-    }
-
-    /** Lịch sử đấu của 1 người chơi. */
-    public List<Map<String, Object>> history(String playerId, int limit) throws SQLException {
-        String sql = """
-            SELECT m.match_id, m.type, m.start_time, m.end_time, pm.score, pm.is_winner
-            FROM matches m
-            JOIN player_matches pm ON pm.match_id = m.match_id
+            SELECT m.match_id,
+                   m.type        AS mode,
+                   m.start_time,
+                   m.end_time,
+                   pm.score,
+                   pm.is_winner AS result
+            FROM player_matches pm
+            JOIN matches m ON m.match_id = pm.match_id
             WHERE pm.player_id = ?
-            ORDER BY m.start_time DESC
+            ORDER BY m.start_time DESC, m.match_id DESC
             LIMIT ?
-            """;
-        try (var c = getConnection(); var ps = c.prepareStatement(sql)) {
+        """;
+        List<Map<String,Object>> out = new ArrayList<>();
+        try (Connection c = getConn();
+             PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, playerId);
-            ps.setInt(2, Math.max(1, limit));
-            try (var rs = ps.executeQuery()) {
-                var rows = new ArrayList<Map<String, Object>>();
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    var r = new LinkedHashMap<String, Object>();
-                    r.put("matchId",   rs.getInt("match_id"));
-                    r.put("mode",      rs.getString("type"));
-                    r.put("startTime", rs.getTimestamp("start_time"));
-                    r.put("endTime",   rs.getTimestamp("end_time"));
-                    r.put("score",     rs.getInt("score"));
-                    r.put("isWinner",  rs.getInt("is_winner") == 1);
-                    rows.add(r);
+                    Map<String,Object> row = new HashMap<>();
+                    row.put("matchId",   rs.getInt("match_id"));
+                    row.put("mode",      rs.getString("mode")); // ONE_VS_ONE / MULTIPLAYER
+                    row.put("startTime", rs.getTimestamp("start_time"));
+                    row.put("endTime",   rs.getTimestamp("end_time"));
+                    row.put("score",     rs.getInt("score"));
+                    row.put("isWinner",  rs.getString("result"));
+                    out.add(row);
                 }
-                return rows;
+            }
+        }
+        return out;
+    }    
+    /* ======================= Public APIs ======================= */
+
+    /**
+     * Đăng ký tài khoản mới.
+     * @throws SQLException "USERNAME_EXISTS" hoặc "NICKNAME_EXISTS" nếu trùng.
+     */
+    public Player register(String username, String password, String nickname) throws SQLException {
+        try (Connection c = getConn()) {
+            // Tăng cô lập để hạn chế đua ID
+            int oldIso = c.getTransactionIsolation();
+            c.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            c.setAutoCommit(false);
+
+            try {
+                // 1) Sinh id
+                String newId = nextPlayerId(c);
+
+                // 2) Insert
+                String sql = """
+                    INSERT INTO players (player_id, username, password, nick_name, total_score, total_wins)
+                    VALUES (?, ?, ?, ?, 0, 0)
+                """;
+                try (PreparedStatement ps = c.prepareStatement(sql)) {
+                    ps.setString(1, newId);
+                    ps.setString(2, username);
+                    ps.setString(3, password);
+                    ps.setString(4, nickname);
+                    ps.executeUpdate();
+                }
+
+                // 3) Lấy lại row để trả về đầy đủ
+                Player created = getById(c, newId);
+
+                c.commit();
+                c.setTransactionIsolation(oldIso);
+                return created;
+
+            } catch (SQLException ex) {
+                c.rollback();
+
+                // Chuẩn hóa thông báo vi phạm UNIQUE -> ném code để server hiển thị đẹp
+                String msg = ex.getMessage();
+                if (msg != null) {
+                    String lower = msg.toLowerCase();
+                    if (lower.contains("uq_players_username") || lower.contains("username"))
+                        throw new SQLException("USERNAME_EXISTS");
+                    if (lower.contains("uq_players_nickname") || lower.contains("nick_name"))
+                        throw new SQLException("NICKNAME_EXISTS");
+                    if (lower.contains("duplicate") && lower.contains("nick"))
+                        throw new SQLException("NICKNAME_EXISTS");
+                    if (lower.contains("duplicate") && lower.contains("user"))
+                        throw new SQLException("USERNAME_EXISTS");
+                }
+                throw ex;
+            } finally {
+                try { c.setAutoCommit(true); } catch (Exception ignore) {}
             }
         }
     }
 
-    // ---------- ID số ngẫu nhiên ----------
-    private String generateNumericId(Connection c) throws SQLException {
-        for (int i = 0; i < MAX_ATTEMPTS; i++) {
-            String id = genDigits(ID_LENGTH, true);
-            if (!existsById(c, id)) return id;
+    /**
+     * Đăng nhập: đúng username/password trả về Player, sai trả về null.
+     */
+    public Player login(String username, String password) throws SQLException {
+        String sql = """
+            SELECT player_id, username, password, nick_name, total_score, total_wins
+            FROM players
+            WHERE username = ? AND password = ?
+            LIMIT 1
+        """;
+        try (Connection c = getConn();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setString(2, password);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return map(rs);
+                return null;
+            }
         }
-        for (int i = 0; i < MAX_ATTEMPTS; i++) {
-            String id = genDigits(ID_LENGTH, false);
-            if (!existsById(c, id)) return id;
-        }
-        for (int i = 0; i < MAX_ATTEMPTS; i++) {
-            String id = genDigits(ID_LENGTH + 1, true);
-            if (!existsById(c, id)) return id;
-        }
-        throw new SQLException("Cannot generate unique player_id");
     }
-    private static String genDigits(int length, boolean noLeadingZero) {
-        var r = ThreadLocalRandom.current();
-        var sb = new StringBuilder(length);
-        if (noLeadingZero) sb.append(r.nextInt(1, 10)); else sb.append(r.nextInt(10));
-        while (sb.length() < length) sb.append(r.nextInt(10));
-        return sb.toString();
+
+    /**
+     * Lấy người chơi theo ID.
+     */
+    public Player getById(String playerId) throws SQLException {
+        try (Connection c = getConn()) {
+            return getById(c, playerId);
+        }
     }
-    private static boolean existsById(Connection c, String id) throws SQLException {
-        try (var ps = c.prepareStatement("SELECT 1 FROM players WHERE player_id=? LIMIT 1")) {
-            ps.setString(1, id);
-            try (var rs = ps.executeQuery()) { return rs.next(); }
+
+    private Player getById(Connection c, String playerId) throws SQLException {
+        String sql = """
+            SELECT player_id, username, password, nick_name, total_score, total_wins
+            FROM players
+            WHERE player_id = ?
+            LIMIT 1
+        """;
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, playerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return map(rs);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Lấy người chơi theo username.
+     */
+    public Player getByUsername(String username) throws SQLException {
+        String sql = """
+            SELECT player_id, username, password, nick_name, total_score, total_wins
+            FROM players
+            WHERE username = ?
+            LIMIT 1
+        """;
+        try (Connection c = getConn();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, username);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return map(rs);
+                return null;
+            }
+        }
+    }
+    
+    /**
+     * Cộng điểm/thắng sau khi kết thúc trận.
+     */
+    public void addScoreAndWins(String playerId, int scoreDelta, int winDelta) throws SQLException {
+        String sql = """
+            UPDATE players
+            SET total_score = total_score + ?, total_wins = total_wins + ?
+            WHERE player_id = ?
+        """;
+        try (Connection c = getConn();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, scoreDelta);
+            ps.setInt(2, winDelta);
+            ps.setString(3, playerId);
+            ps.executeUpdate();
+        }
+    }
+
+    /* ================== Status Player ==================
+    */
+    public void updateStatusNoop(String playerId, String status) throws SQLException {
+        try (Connection ignored = getConn()) {
+            // intentionally empty
         }
     }
 }

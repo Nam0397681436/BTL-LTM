@@ -1,59 +1,89 @@
 package client.ui;
 
-import client.JsonUtil;
-import client.net.TcpClient;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.io.IOException;
+import java.util.List;
 
-public class HistoryFrame extends JFrame {
-    private final TcpClient tcp;
-    private final DefaultTableModel model =
-            new DefaultTableModel(new Object[]{"MatchId","Mode","Start","End","Score","Kết quả"}, 0) {
-                @Override public boolean isCellEditable(int r, int c) { return false; }
-            };
+/**
+ * Frame/JDialog xem lịch sử đấu.
+ * Có 2 API nạp dữ liệu: load(JsonArray) và setData(List<Object[]>).
+ */
+public class HistoryFrame extends JDialog {
 
-    public HistoryFrame(TcpClient tcp) {
-        super("Lịch sử đấu");
-        this.tcp = tcp;
-        setSize(700, 420);
-        setLocationRelativeTo(null);
+    private JTable tblHistory;
+    private DefaultTableModel model;
+
+    /* ===== Constructors ===== */
+    public HistoryFrame(Frame owner, boolean modal) {
+        super(owner, "Lịch sử đấu", modal);
+        initUI();
+    }
+
+    /** Constructor mặc định (modal=true). */
+    public HistoryFrame() {
+        super((Frame) null, "Lịch sử đấu", true);
+        initUI();
+    }
+
+    /* ===== Public APIs để MainFrame gọi ===== */
+
+    /** Nạp dữ liệu từ JSON server gửi (type=HISTORY). */
+    public void load(JsonArray rows) {
+        model.setRowCount(0);
+        for (int i = 0; i < rows.size(); i++) {
+            JsonObject o = rows.get(i).getAsJsonObject();
+            int matchId   = o.get("matchId").getAsInt();
+            String mode   = o.get("mode").getAsString();
+            String start  = o.get("startTime").isJsonNull() ? "" : o.get("startTime").getAsString();
+            String end    = o.get("endTime").isJsonNull()   ? "" : o.get("endTime").getAsString();
+            int score     = o.get("score").getAsInt();
+            String result = o.has("result")
+                    ? o.get("result").getAsString()
+                    : (o.get("isWinner").getAsBoolean()? "WIN" : "LOSE");
+            model.addRow(new Object[]{ matchId, mode, start, end, score, result });
+        }
+    }
+
+    /** Nạp dữ liệu dạng bảng sẵn. Mỗi Object[] là 1 dòng. */
+    public void setData(List<Object[]> table) {
+        model.setRowCount(0);
+        for (Object[] r : table) model.addRow(r);
+    }
+
+    /* ===== UI ===== */
+    private void initUI() {
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout());
-        var btnReload = new JButton("Lịch sử đấu");
-        btnReload.addActionListener(e -> load());
-        add(btnReload, BorderLayout.NORTH);
-        add(new JScrollPane(new JTable(model)), BorderLayout.CENTER);
-    }
+        setSize(780, 460);
+        setLocationRelativeTo(getOwner());
 
-    public void load() {
-        JsonObject m = new JsonObject();
-        m.addProperty("type", "GET_HISTORY");
-        m.addProperty("limit", 50);
-        try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
-    }
+        model = new DefaultTableModel(
+                new Object[]{"MatchId", "Chế độ", "Bắt đầu", "Kết thúc", "Điểm", "Kết quả"}, 0
+        ) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
 
-    public void handleLine(String line) {
-        try {
-            var msg = JsonUtil.fromJson(line, JsonObject.class);
-            if (!"HISTORY".equals(msg.get("type").getAsString())) return;
-            model.setRowCount(0);
-            JsonArray arr = msg.getAsJsonArray("rows");
-            for (var el : arr) {
-                var o = el.getAsJsonObject();
-                model.addRow(new Object[]{
-                        o.get("matchId").getAsInt(),
-                        o.get("mode").getAsString(),
-                        o.get("startTime").getAsString(),
-                        o.get("endTime").getAsString(),
-                        o.get("score").getAsInt(),
-                        o.get("result").getAsString()
-                });
-            }
-        } catch (Exception ignore) {}
+        tblHistory = new JTable(model);
+        tblHistory.setRowHeight(26);
+        tblHistory.setAutoCreateRowSorter(true);
+
+        tblHistory.getTableHeader().setFont(tblHistory.getFont().deriveFont(Font.BOLD));
+
+        // Layout
+        JPanel root = new JPanel(new BorderLayout(10, 10));
+        root.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        root.add(new JScrollPane(tblHistory), BorderLayout.CENTER);
+
+        // Nút đóng
+        JButton btnClose = new JButton("Đóng");
+        btnClose.addActionListener(e -> dispose());
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        footer.add(btnClose);
+        root.add(footer, BorderLayout.SOUTH);
+
+        setContentPane(root);
     }
 }

@@ -9,18 +9,17 @@ public class PlayerMatch {
     private int matchId;        // FK -> matches.match_id
     private String playerId;    // FK -> players.player_id
     private int score;
-    private boolean winner;
-    private boolean host;
+    private String winner;
+
 
     public PlayerMatch() {}
 
-    public PlayerMatch(int id, int matchId, String playerId, int score, boolean winner, boolean host) {
+    public PlayerMatch(int id, int matchId, String playerId, int score, String winner) {
         this.id = id;
         this.matchId = matchId;
         this.playerId = playerId;
         this.score = score;
         this.winner = winner;
-        this.host = host;
     }
 
     public static PlayerMatch fromResultSet(ResultSet rs) throws SQLException {
@@ -29,8 +28,7 @@ public class PlayerMatch {
                 rs.getInt("match_id"),
                 rs.getString("player_id"),
                 rs.getInt("score"),
-                rs.getInt("is_winner") == 1,
-                rs.getInt("is_host") == 1
+                rs.getString("is_winner")
         );
     }
 
@@ -43,10 +41,8 @@ public class PlayerMatch {
     public void setPlayerId(String playerId) { this.playerId = playerId; }
     public int getScore() { return score; }
     public void setScore(int score) { this.score = score; }
-    public boolean isWinner() { return winner; }
-    public void setWinner(boolean winner) { this.winner = winner; }
-    public boolean isHost() { return host; }
-    public void setHost(boolean host) { this.host = host; }
+    public String isWinner() { return winner; }
+    public void setWinner(String winner) { this.winner = winner; }
 
     @Override public boolean equals(Object o) {
         if (this == o) return true;
@@ -63,7 +59,6 @@ public class PlayerMatch {
                 ", playerId='" + playerId + '\'' +
                 ", score=" + score +
                 ", winner=" + winner +
-                ", host=" + host +
                 '}';
     }
 }
