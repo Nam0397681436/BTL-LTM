@@ -72,7 +72,7 @@ public class MatchSolo extends JFrame {
         if (mainFrame != null) {
             // Chuyển message handler về MainFrame
             client.ClientApp.setMessageHandler(mainFrame::handleLine);
-            mainFrame.setVisible(true);
+            mainFrame.reopen();
         }
         this.dispose();
     }

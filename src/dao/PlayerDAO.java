@@ -70,7 +70,7 @@ public class PlayerDAO {
                    m.start_time,
                    m.end_time,
                    pm.score,
-                   pm.is_winner AS result
+                   pm.status AS result
             FROM player_matches pm
             JOIN matches m ON m.match_id = pm.match_id
             WHERE pm.player_id = ?

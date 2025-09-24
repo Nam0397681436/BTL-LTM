@@ -3,6 +3,8 @@ package client.ui;
 import client.ClientApp;
 import client.JsonUtil;
 import client.ui.HistoryFrame;
+import model.HandelMatchMulti;
+import model.Player;
 import client.net.TcpClient;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -26,12 +28,24 @@ public class MainFrame extends JFrame {
     private client.ui.LoginFrame loginFrame;
 
     // Bảng người chơi online (3 cột)
-    private final DefaultTableModel playersModel=new DefaultTableModel(new Object[]{"PlayerId","Player","Action"},0){@Override public boolean isCellEditable(int r,int c){return c==2;}};
+    private final DefaultTableModel playersModel = new DefaultTableModel(
+            new Object[] { "PlayerId", "Player", "Action" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return c == 2;
+        }
+    };
     private JTable tblPlayers;
     private TableRowSorter<DefaultTableModel> sorter;
 
     // Bảng BXH
-    private final DefaultTableModel lbModel=new DefaultTableModel(new Object[]{"Nickname","TotalScore","Wins"},0){@Override public boolean isCellEditable(int r,int c){return false;}};
+    private final DefaultTableModel lbModel = new DefaultTableModel(new Object[] { "Nickname", "TotalScore", "Wins" },
+            0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
+    };
     private JTable tblLb;
 
     private final CardLayout cards = new CardLayout();
@@ -100,6 +114,9 @@ public class MainFrame extends JFrame {
         tblPlayers.getColumn("Action").setCellEditor(new ButtonEditor(modelRow -> {
             String targetId = String.valueOf(playersModel.getValueAt(modelRow, 0));
             String targetName = String.valueOf(playersModel.getValueAt(modelRow, 1));
+            String status = String.valueOf(playersModel.getValueAt(modelRow, 2));
+            if (!"Thách đấu".equals(status))
+                return;
             invitePvp(targetId, targetName);
         }));
 
@@ -132,7 +149,7 @@ public class MainFrame extends JFrame {
             public void windowClosing(java.awt.event.WindowEvent e) {
                 try {
                     var m = new com.google.gson.JsonObject();
-                    m.addProperty("type", "LOGOUT");
+                    m.addProperty("type", "EXIT");
                     tcp.send(client.JsonUtil.toJson(m));
                     try {
                         Thread.sleep(150);
@@ -186,7 +203,16 @@ public class MainFrame extends JFrame {
                         "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         });
-        btnCreate.addActionListener(e -> JOptionPane.showMessageDialog(this, "ROOM_CREATE sẽ bổ sung."));
+        btnCreate.addActionListener(e -> {
+            var m = new JsonObject();
+            System.out.println("Creating multiplayer room");
+            m.addProperty("type", "CREATE_MULTIPLAYER_ROOM");
+            try {
+                tcp.send(JsonUtil.toJson(m));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        });
         cardActions.add(btnHistory);
         cardActions.add(Box.createVerticalStrut(8));
         cardActions.add(btnCreate);
@@ -381,27 +407,45 @@ public class MainFrame extends JFrame {
                     for (var el : arr) {
                         var o = el.getAsJsonObject();
                         String pid = o.get("playerId").getAsString();
-                        if (pid.equals(myPlayerId)) continue;
+                        if (pid.equals(myPlayerId))
+                            continue;
                         String name = o.get("nickname").getAsString();
-                        playersModel.addRow(new Object[]{pid, name, "Thách đấu"});
+                        String status = o.get("status").getAsString();
+                        playersModel.addRow(new Object[] { pid, name, status.equals("IN_GAME") ? "Đang chơi" : "Thách đấu" });
+                    }
+                }
+                case "ONLINE_LIST" -> {
+                    playersModel.setRowCount(0);
+                    JsonArray arr = msg.getAsJsonArray("rows");
+                    for (var el : arr) {
+                        var o = el.getAsJsonObject();
+                        String pid = o.get("playerId").getAsString();
+                        if (pid.equals(myPlayerId))
+                            continue;
+                        String name = o.get("nickname").getAsString();
+                        String status = o.get("status").getAsString();
+                        playersModel.addRow(new Object[] { pid, name, status.equals("IN_GAME") ? "Đang chơi" : "Thách đấu" });
                     }
                 }
                 case "ONLINE_ADD" -> {
                     String pid = msg.get("playerId").getAsString();
-                    if (pid.equals(myPlayerId)) break;
+                    if (pid.equals(myPlayerId))
+                        break;
                     String name = msg.get("nickname").getAsString();
-                    if (findRowById(pid) < 0) playersModel.addRow(new Object[]{pid, name, "Thách đấu"});
+                    if (findRowById(pid) < 0)
+                        playersModel.addRow(new Object[] { pid, name, "Thách đấu" });
                 }
                 case "ONLINE_REMOVE" -> {
                     int r = findRowById(msg.get("playerId").getAsString());
-                    if (r >= 0) playersModel.removeRow(r);
+                    if (r >= 0)
+                        playersModel.removeRow(r);
                 }
                 case "LEADERBOARD" -> {
                     lbModel.setRowCount(0);
                     JsonArray arr = msg.getAsJsonArray("rows");
                     for (var el : arr) {
                         var o = el.getAsJsonObject();
-                        lbModel.addRow(new Object[]{
+                        lbModel.addRow(new Object[] {
                                 o.get("nickname").getAsString(),
                                 o.get("totalScore").getAsInt(),
                                 o.get("totalWins").getAsInt()
@@ -420,9 +464,10 @@ public class MainFrame extends JFrame {
                                 HistoryFrame hf;
                                 try {
                                     // Ưu tiên ctor (Frame, boolean) nếu có (thường là JDialog sinh từ NetBeans)
-                                    java.lang.reflect.Constructor<HistoryFrame> c =
-                                            HistoryFrame.class.getConstructor(java.awt.Frame.class, boolean.class);
-                                    java.awt.Frame f = (owner instanceof java.awt.Frame) ? (java.awt.Frame) owner : null;
+                                    java.lang.reflect.Constructor<HistoryFrame> c = HistoryFrame.class
+                                            .getConstructor(java.awt.Frame.class, boolean.class);
+                                    java.awt.Frame f = (owner instanceof java.awt.Frame) ? (java.awt.Frame) owner
+                                            : null;
                                     hf = c.newInstance(f, true);
                                 } catch (NoSuchMethodException e) {
                                     // Không có ctor (Frame, boolean) -> dùng ctor rỗng
@@ -432,26 +477,28 @@ public class MainFrame extends JFrame {
                                 historyFrame.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
                             }
 
-                                // 2) Nạp dữ liệu: gọi đúng hàm mà HistoryFrame của bạn đang có
+                            // 2) Nạp dữ liệu: gọi đúng hàm mà HistoryFrame của bạn đang có
                             // Nếu HistoryFrame có public void load(JsonArray rows)
                             try {
                                 var m = HistoryFrame.class.getMethod("load", com.google.gson.JsonArray.class);
                                 m.invoke(historyFrame, rows);
                             } catch (NoSuchMethodException noLoad) {
-                                // Fallback: nếu không có load(JsonArray), chuyển về List<Object[]> và gọi setData(List)
+                                // Fallback: nếu không có load(JsonArray), chuyển về List<Object[]> và gọi
+                                // setData(List)
                                 java.util.List<Object[]> table = new java.util.ArrayList<>();
                                 for (int i = 0; i < rows.size(); i++) {
                                     var o = rows.get(i).getAsJsonObject();
-                                    int    matchId = o.get("matchId").getAsInt();
-                                    String mode    = o.get("mode").getAsString();
-                                    String start   = o.get("startTime").isJsonNull() ? "" : o.get("startTime").getAsString();
-                                    String end     = o.get("endTime").isJsonNull()   ? "" : o.get("endTime").getAsString();
-                                    int    score   = o.get("score").getAsInt();
-                                    String result  = o.get("isWinner").getAsBoolean() ? "WIN" : "LOSE";
-                                    table.add(new Object[]{ matchId, mode, start, end, score, result });
-                                    }
-                                    try {
-                                        var m2 = HistoryFrame.class.getMethod("setData", java.util.List.class);
+                                    int matchId = o.get("matchId").getAsInt();
+                                    String mode = o.get("mode").getAsString();
+                                    String start = o.get("startTime").isJsonNull() ? ""
+                                            : o.get("startTime").getAsString();
+                                    String end = o.get("endTime").isJsonNull() ? "" : o.get("endTime").getAsString();
+                                    int score = o.get("score").getAsInt();
+                                    String result = o.get("isWinner").getAsBoolean() ? "WIN" : "LOSE";
+                                    table.add(new Object[] { matchId, mode, start, end, score, result });
+                                }
+                                try {
+                                    var m2 = HistoryFrame.class.getMethod("setData", java.util.List.class);
                                     m2.invoke(historyFrame, table);
                                 } catch (NoSuchMethodException noSetData) {
                                     // Fallback cuối: bơm thẳng vào JTable tên tblHistory nếu có
@@ -459,12 +506,14 @@ public class MainFrame extends JFrame {
                                         var fld = HistoryFrame.class.getDeclaredField("tblHistory");
                                         fld.setAccessible(true);
                                         javax.swing.JTable tbl = (javax.swing.JTable) fld.get(historyFrame);
-                                        javax.swing.table.DefaultTableModel model =
-                                                    (javax.swing.table.DefaultTableModel) tbl.getModel();
-                                           model.setRowCount(0);
-                                        for (Object[] r : table) model.addRow(r);
+                                        javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) tbl
+                                                .getModel();
+                                        model.setRowCount(0);
+                                        for (Object[] r : table)
+                                            model.addRow(r);
                                     } catch (NoSuchFieldException nf) {
-                                        System.err.println("[HISTORY] Không tìm thấy load(JsonArray)/setData(List) và cũng không có JTable 'tblHistory'.");
+                                        System.err.println(
+                                                "[HISTORY] Không tìm thấy load(JsonArray)/setData(List) và cũng không có JTable 'tblHistory'.");
                                     }
                                 }
                             }
@@ -492,25 +541,22 @@ public class MainFrame extends JFrame {
                     String reason = msg.has("reason") ? msg.get("reason").getAsString() : "";
                     if ("INVALID_CREDENTIALS".equals(reason)) {
                         javax.swing.JOptionPane.showMessageDialog(
-                            this,
-                            "Sai tài khoản / mật khẩu",
-                            "Đăng nhập thất bại",
-                            javax.swing.JOptionPane.ERROR_MESSAGE
-                        );
+                                this,
+                                "Sai tài khoản / mật khẩu",
+                                "Đăng nhập thất bại",
+                                javax.swing.JOptionPane.ERROR_MESSAGE);
                     } else {
                         javax.swing.JOptionPane.showMessageDialog(
-                            this,
-                            "Đăng nhập thất bại",
-                            "Lỗi",
-                            javax.swing.JOptionPane.ERROR_MESSAGE
-                        );
+                                this,
+                                "Đăng nhập thất bại",
+                                "Lỗi",
+                                javax.swing.JOptionPane.ERROR_MESSAGE);
                     }
                 }
                 case "SERVER_ERROR" -> {
                     String m = msg.has("message") ? msg.get("message").getAsString() : "Lỗi máy chủ";
                     javax.swing.JOptionPane.showMessageDialog(
-                        this, m, "Đăng nhập thất bại", javax.swing.JOptionPane.ERROR_MESSAGE
-                    );
+                            this, m, "Đăng nhập thất bại", javax.swing.JOptionPane.ERROR_MESSAGE);
                 }
                 case "INVITE" -> {
                     String inviterId = msg.get("PLAYER_INVITE").getAsString();
@@ -521,44 +567,84 @@ public class MainFrame extends JFrame {
                     String inviterId = msg.get("inviterId").getAsString();
                     boolean accepted = msg.get("accepted").getAsBoolean();
                     String opponentName = msg.has("opponentName") ? msg.get("opponentName").getAsString() : "Đối thủ";
-                    
+
                     if (accepted) {
                         openMatchFrame(inviterId, opponentName);
                     } else {
                         // Đối phương từ chối thách đấu
-                        JOptionPane.showMessageDialog(this, 
-                                opponentName + " đã từ chối thách đấu.", 
-                                "Thách đấu bị từ chối", 
+                        JOptionPane.showMessageDialog(this,
+                                opponentName + " đã từ chối thách đấu.",
+                                "Thách đấu bị từ chối",
                                 JOptionPane.INFORMATION_MESSAGE);
                     }
                 }
                 case "CHALLENGE_SENT" -> {
                     String targetPlayer = msg.get("targetPlayer").getAsString();
-                    JOptionPane.showMessageDialog(this, 
-                            "Đã gửi thách đấu cho " + targetPlayer, 
-                            "Thách đấu đã gửi", 
+                    JOptionPane.showMessageDialog(this,
+                            "Đã gửi thách đấu cho " + targetPlayer,
+                            "Thách đấu đã gửi",
                             JOptionPane.INFORMATION_MESSAGE);
                 }
                 case "OPPONENT_LEFT" -> {
                     String playerName = msg.get("playerName").getAsString();
-                    JOptionPane.showMessageDialog(this, 
-                            playerName + " đã rời phòng đấu.", 
-                            "Đối phương rời phòng", 
+                    JOptionPane.showMessageDialog(this,
+                            playerName + " đã rời phòng đấu.",
+                            "Đối phương rời phòng",
                             JOptionPane.INFORMATION_MESSAGE);
                 }
                 case "OPPONENT_SURRENDERED" -> {
                     String playerName = msg.get("playerName").getAsString();
-                    JOptionPane.showMessageDialog(this, 
-                            playerName + " đã đầu hàng. Bạn thắng!", 
-                            "Đối phương đầu hàng", 
+                    JOptionPane.showMessageDialog(this,
+                            playerName + " đã đầu hàng. Bạn thắng!",
+                            "Đối phương đầu hàng",
                             JOptionPane.INFORMATION_MESSAGE);
                 }
+                case "CREATE_MULTIPLAYER_ROOM_ACK" -> {
+                    HandelMatchMulti match = HandelMatchMulti.fromJson(msg.get("match").getAsString());
+                    Player me = Player.fromJson(msg.get("me").getAsString());
+                    this.setVisible(false);
+                    var game = new MultiplayerRoomFrame(match, me, tcp, this);
+                    game.setVisible(true);
+                }
+                case "INVITE_MATCH_MULTI_USER" -> {
+                    Player fromPlayer = Player.fromJson(msg.get("fromPlayer").getAsString());
+                    int matchId = msg.get("matchId").getAsInt();
+                    System.out.println(fromPlayer);
+                    int option = JOptionPane.showConfirmDialog(this,
+                            fromPlayer.getNickname() + " mời bạn chơi game!!. Ban có đồng ý không?",
+                            "Lời mời thách đấu", JOptionPane.YES_NO_OPTION);
+                    if (option == JOptionPane.YES_OPTION) {
+                        var m = new JsonObject();
+                        m.addProperty("type", "INVITE_ACCEPT_MATCH_MULTI");
+                        m.addProperty("matchId", matchId);
+                        try {
+                            tcp.send(JsonUtil.toJson(m));
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
+                        }
+                    } else {
+                        var m = new JsonObject();
+                        m.addProperty("type", "INVITE_DECLINE");
+                        m.addProperty("toPlayerId", fromPlayer.getPlayerId());
+                        try {
+                            tcp.send(JsonUtil.toJson(m));
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                }
+                case "INVITE_ACCEPT_MATCH_MULTI" -> {
+                    HandelMatchMulti match = HandelMatchMulti.fromJson(msg.get("match").getAsString());
+                    Player me = Player.fromJson(msg.get("me").getAsString());
+                    this.setVisible(false);
+                    var game = new MultiplayerRoomFrame(match, me, tcp, this);
+                    game.setVisible(true);
+                }
             }
-        }catch(
+        } catch (
 
-    Exception ignore)
-    {
-    }
+        Exception ignore) {
+        }
     }
 
     private int findRowById(String playerId) {
@@ -699,5 +785,11 @@ public class MainFrame extends JFrame {
                 fireEditingStopped();
             }
         }
+    }
+
+    public void reopen() {
+        ClientApp.setMessageHandler(this::handleLine);
+        this.setVisible(true);
+        loadPlayers();
     }
 }

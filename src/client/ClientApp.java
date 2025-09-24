@@ -4,7 +4,6 @@ import client.net.TcpClient;
 import java.util.function.Consumer;
 import javax.swing.*;
 
-
 public class ClientApp {
 
     private static TcpClient TCP;
@@ -31,17 +30,17 @@ public class ClientApp {
                     "Không thể kết nối tới server " +
                             System.getProperty("HOST", "26.239.82.76") + ":" + Integer.getInteger("PORT", 5555) +
                             "\nHãy kiểm tra server đã chạy và firewall cho phép kết nối.",
-                    "Lỗi mạng", JOptionPane.ERROR_MESSAGE
-            ));
+                    "Lỗi mạng", JOptionPane.ERROR_MESSAGE));
             return;
         }
 
         // 2) Mở UI đăng nhập
         SwingUtilities.invokeLater(new Runnable() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 new client.ui.LoginFrame(TCP).setVisible(true);
             }
-});
+        });
 
         // 3) Luồng đọc nền: nhận NDJSON và chuyển cho UI hiện tại
         Thread rx = new Thread(() -> {
@@ -53,7 +52,10 @@ public class ClientApp {
                     Consumer<String> h = messageHandler;
                     if (h != null) {
                         SwingUtilities.invokeLater(() -> {
-                            try { h.accept(msg); } catch (Exception ignore) {}
+                            try {
+                                h.accept(msg);
+                            } catch (Exception ignore) {
+                            }
                         });
                     } else {
                         // Chưa có handler (ví dụ đang ở Login/Register) -> bỏ qua hoặc log
@@ -63,7 +65,10 @@ public class ClientApp {
             } catch (Exception e) {
                 System.out.println("[RX] socket closed: " + e.getMessage());
             } finally {
-                try { TCP.close(); } catch (Exception ignore) {}
+                try {
+                    TCP.close();
+                } catch (Exception ignore) {
+                }
                 // Thông báo nhẹ cho người dùng nếu đang ở MainFrame
                 SwingUtilities.invokeLater(() -> {
                 });
@@ -74,7 +79,10 @@ public class ClientApp {
 
         // 4) Đóng gói dọn dẹp khi app thoát
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try { TCP.close(); } catch (Exception ignore) {}
+            try {
+                TCP.close();
+            } catch (Exception ignore) {
+            }
         }));
     }
 }

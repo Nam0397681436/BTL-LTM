@@ -8,7 +8,7 @@ public class DAO {
     private static String url() {
         return System.getProperty(
                 "DB_URL",
-                "jdbc:mysql://127.0.0.1:3306/ltm?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8"
+                "jdbc:mysql://127.0.0.1:3306/btl?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8"
         );
     }
     private static String user() { return System.getProperty("DB_USER", "root"); }
