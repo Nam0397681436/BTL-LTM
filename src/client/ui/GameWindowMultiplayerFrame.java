@@ -2,7 +2,6 @@ package client.ui;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
 import com.google.gson.JsonObject;
@@ -55,7 +54,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         this.mainFrame = mainFrame;
         this.me = me;
 
-        setTitle("Multiplayer Game Window");
+        setTitle("🎮 Trò chơi nhiều người");
         setSize(950, 600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -75,15 +74,15 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         topPanel.setOpaque(false);
         topPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
 
-        roundLabel = new JLabel("Round: 1", SwingConstants.LEFT);
+        roundLabel = new JLabel("Vòng: 1", SwingConstants.LEFT);
         roundLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         roundLabel.setForeground(Color.WHITE);
 
-        scoreLabel = new JLabel("Score: 0", SwingConstants.CENTER);
+        scoreLabel = new JLabel("Điểm: 0", SwingConstants.CENTER);
         scoreLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         scoreLabel.setForeground(Color.CYAN);
 
-        timerLabel = new JLabel("Time: --", SwingConstants.RIGHT);
+        timerLabel = new JLabel("Thời gian: --", SwingConstants.RIGHT);
         timerLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         timerLabel.setForeground(Color.YELLOW);
 
@@ -103,7 +102,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
         inputPanel.setBorder(new EmptyBorder(5, 5, 5, 5));
         inputField = new JTextField();
-        submitButton = new JButton("Submit");
+        submitButton = new JButton("Xác nhận");
         inputField.setEnabled(false);
         submitButton.setEnabled(false);
 
@@ -122,7 +121,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         JPanel leaderboardPanel = new JPanel(new BorderLayout(5, 5));
         leaderboardPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        String[] columnNames = { "Rank", "Player", "Score" };
+        String[] columnNames = { "Hạng", "Người chơi", "Điểm" };
         leaderboardModel = new DefaultTableModel(columnNames, 0);
 
         leaderboardTable = new JTable(leaderboardModel);
@@ -134,47 +133,44 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         JScrollPane scrollPane = new JScrollPane(leaderboardTable);
         leaderboardPanel.add(scrollPane, BorderLayout.CENTER);
 
-        exitButton = new JButton("Exit Game");
+        exitButton = new JButton("Thoát trận");
         exitButton.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         exitButton.addActionListener(this);
         JPanel exitPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         exitPanel.add(exitButton);
         leaderboardPanel.add(exitPanel, BorderLayout.SOUTH);
 
-        rightTabs.addTab("Leaderboard", leaderboardPanel);
+        rightTabs.addTab("Bảng xếp hạng", leaderboardPanel);
 
-        // --- Tab 2: Chat ---
+        // --- Tab 2: Chat (giữ nguyên nếu sau này muốn bật) ---
+        // (Mã chat ban đầu của bạn bị comment — mình giữ comment để không thay đổi logic)
         // JPanel chatPanel = new JPanel(new BorderLayout(5, 5));
         // chatPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-
         // chatArea = new JTextArea();
         // chatArea.setEditable(false);
         // chatArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         // JScrollPane chatScroll = new JScrollPane(chatArea);
-
         // JPanel inputChatPanel = new JPanel(new BorderLayout(5, 5));
         // chatInput = new JTextField();
         // sendButton = new JButton("Send");
-
         // inputChatPanel.add(chatInput, BorderLayout.CENTER);
         // inputChatPanel.add(sendButton, BorderLayout.EAST);
-
         // chatPanel.add(chatScroll, BorderLayout.CENTER);
         // chatPanel.add(inputChatPanel, BorderLayout.SOUTH);
-
         // rightTabs.addTab("Chat", chatPanel);
 
         add(rightTabs, BorderLayout.EAST);
         updateRanking(match);
 
+        // ===== Đóng cửa sổ: hỏi trước khi rời =====
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         this.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
                 int confirm = JOptionPane.showConfirmDialog(
                         GameWindowMultiplayerFrame.this,
-                        "Are you sure you want to exit the match?",
-                        "Confirm Exit",
+                        "Bạn có chắc muốn thoát trận không?",
+                        "Xác nhận thoát",
                         JOptionPane.YES_NO_OPTION);
 
                 if (confirm == JOptionPane.YES_OPTION) {
@@ -189,6 +185,14 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
                 }
             }
         });
+
+        // Đăng ký action cho nút Xác nhận (giữ nguyên cách bạn làm)
+        submitButton.addActionListener(e -> checkAnswer());
+
+        // nếu có sendButton kích hoạt (nếu bạn bật chat), cũng giữ logic gửi
+        if (sendButton != null) {
+            sendButton.addActionListener(this);
+        }
     }
 
     public void handleLine(String line) {
@@ -218,7 +222,6 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
                     case "LEAVE_GAME_ME" -> {
                         System.out.println("Player chose to leave the game.");
                         mainFrame.reopen();
-                        // System.out.println("LEAVE_GAME_ME received: " + mainFrame);
                         dispose();
                     }
 
@@ -256,8 +259,8 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
             } else if (source == exitButton) {
                 int confirm = JOptionPane.showConfirmDialog(
                         GameWindowMultiplayerFrame.this,
-                        "Are you sure you want to exit the match?",
-                        "Confirm Exit",
+                        "Bạn có chắc muốn thoát trận không?",
+                        "Xác nhận thoát",
                         JOptionPane.YES_NO_OPTION);
 
                 if (confirm == JOptionPane.YES_OPTION) {
@@ -281,33 +284,31 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         this.round = match.getCurrentRound();
         generatedString = match.getQuestionCurrentRound();
         gameLabel.setText(generatedString);
-        roundLabel.setText("Round: " + round);
+        roundLabel.setText("Vòng: " + round);
         alreadySubmitted = false;
         inputField.setText("");
-        // Show phase (10s)
+        // Show phase (the original logic)
         if (memorizeTimer != null)
             memorizeTimer.stop();
         if (inputTimer != null)
             inputTimer.stop();
 
         timeLeft = match.getTimeShowQuestion();
-        updateTimerLabel("Memorize");
+        updateTimerLabel("Hiển thị");
 
         memorizeTimer = new Timer(1000, e -> {
             timeLeft--;
-            updateTimerLabel("Memorize");
+            updateTimerLabel("Hiển thị");
             if (timeLeft <= 0) {
                 memorizeTimer.stop();
                 startInputPhase();
             }
         });
         memorizeTimer.start();
-
-        submitButton.addActionListener(e -> checkAnswer());
     }
 
     private void startInputPhase() {
-        gameLabel.setText("Now type the string!");
+        gameLabel.setText("Hãy nhập lại chuỗi!");
         inputField.setEnabled(true);
         submitButton.setEnabled(true);
 
@@ -316,14 +317,14 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
             inputTimer.stop();
 
         timeLeft = 7;
-        updateTimerLabel("Input");
+        updateTimerLabel("Nhập");
 
         inputTimer = new Timer(1000, e -> {
             timeLeft--;
-            updateTimerLabel("Input");
+            updateTimerLabel("Nhập");
             if (timeLeft <= 0) {
                 inputTimer.stop();
-                checkAnswer(); // auto check if time runs out
+                checkAnswer(); // auto check nếu hết giờ
             }
         });
         inputTimer.start();
@@ -336,8 +337,6 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         String userInput = inputField.getText().trim().toUpperCase();
         userInput = userInput.isEmpty() ? "" : userInput;
         try {
-            // out.println("CHECK_ANSWER\n" + match.getId() + "\n" + userInput + "\n" +
-            // round);
             var m = new JsonObject();
             m.addProperty("type", "SUBMIT_ANSWER");
             m.addProperty("matchId", match.getMatchId());
@@ -358,26 +357,26 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
             memorizeTimer.stop();
         this.match = match; // cập nhật match mới nhất
         updateRanking(match);
-        this.scoreLabel.setText("Score: " + match.getPlayerMatches().stream()
+        this.scoreLabel.setText("Điểm: " + match.getPlayerMatches().stream()
                 .filter(pm -> pm.getPlayer().getPlayerId().equals(me.getPlayerId()))
                 .findFirst()
                 .map(PlayerMatch::getScore)
                 .orElse(0));
         // Tạo text hiển thị
         StringBuilder resultText = new StringBuilder();
-        resultText.append("Round ").append(round).append(" Results:\n");
-        resultText.append("Correct Answer: ").append(generatedString).append("\n\n");
+        resultText.append("Kết quả vòng ").append(round).append(":\n");
+        resultText.append("Đáp án đúng: ").append(generatedString).append("\n\n");
         for (RoundResult rr : roundResults) {
             resultText.append(rr.getUser().getNickname())
-                    .append(" - Answer: ")
-                    .append(rr.getUserAnswer() != null ? rr.getUserAnswer() : "No input")
-                    .append(" (Score: ")
+                    .append(" - Trả lời: ")
+                    .append(rr.getUserAnswer() != null ? rr.getUserAnswer() : "Không nhập")
+                    .append(" (Điểm: ")
                     .append(rr.getScore())
                     .append(")\n");
         }
 
         // Tạo JDialog tùy chỉnh
-        JDialog dialog = new JDialog(this, "Results", true);
+        JDialog dialog = new JDialog(this, "Kết quả vòng", true);
         dialog.setSize(450, 350);
         dialog.setLocationRelativeTo(this);
         dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE); // KHÔNG cho đóng bằng X
@@ -400,7 +399,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         textArea.setBackground(new Color(240, 240, 240));
         textArea.setMargin(new Insets(10, 10, 10, 10));
 
-        JLabel timerLabel = new JLabel("Closing in 5 seconds...", SwingConstants.CENTER);
+        JLabel timerLabel = new JLabel("Đóng sau 5 giây...", SwingConstants.CENTER);
         timerLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         timerLabel.setForeground(Color.RED);
 
@@ -416,9 +415,8 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
             if (timeLeft[0] <= 0) {
                 ((Timer) e.getSource()).stop();
                 dialog.dispose();
-                if (round < 3) {
+                if (round < 24) {
                     try {
-                        // out.println("NEXT_ROUND\n" + match.getId() + "\n" + (round + 1));
                         var m = new JsonObject();
                         m.addProperty("type", "REQUEST_NEXT_ROUND");
                         m.addProperty("matchId", match.getMatchId());
@@ -438,7 +436,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
                     }
                 }
             } else {
-                timerLabel.setText("Closing in " + timeLeft[0] + " seconds...");
+                timerLabel.setText("Đóng sau " + timeLeft[0] + " giây...");
             }
         });
         resultTimer.start();
@@ -451,7 +449,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
             resultTimer.stop();
         if (memorizeTimer != null)
             memorizeTimer.stop();
-        String[] columnNames = { "Rank", "Player", "Score", "Winner" };
+        String[] columnNames = { "Hạng", "Người chơi", "Điểm", "Trạng thái" };
         List<PlayerMatch> players = match.getPlayerMatches();
 
         // Sắp xếp theo điểm giảm dần
@@ -475,12 +473,12 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
 
         int result = JOptionPane.showOptionDialog(this,
                 scrollPane,
-                "Final Ranking",
+                "🏆 Kết quả cuối cùng",
                 JOptionPane.DEFAULT_OPTION,
                 JOptionPane.INFORMATION_MESSAGE,
                 null,
-                new Object[] { "Close" },
-                "Close");
+                new Object[] { "Đóng" },
+                "Đóng");
 
         if (result == 0 || result == JOptionPane.CLOSED_OPTION) {
             var m = new JsonObject();
@@ -509,12 +507,12 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
 
     public void showWaitingForOpponentInput() {
         JOptionPane.showMessageDialog(this,
-                "Waiting for opponent's input...",
-                "Information",
+                "Đang chờ đối thủ nhập...",
+                "Thông báo",
                 JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void updateTimerLabel(String phase) {
-        timerLabel.setText(phase + " Time: " + timeLeft + "s");
+        timerLabel.setText("Thời gian " + phase + ": " + timeLeft + "s");
     }
 }

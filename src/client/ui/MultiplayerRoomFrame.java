@@ -2,7 +2,6 @@ package client.ui;
 
 import javax.swing.*;
 import javax.swing.table.*;
-
 import com.google.gson.JsonObject;
 
 import client.ClientApp;
@@ -33,6 +32,13 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
     private FindUserFrame findUserFrame;
 
     public MultiplayerRoomFrame(HandelMatchMulti match, Player me, TcpClient tcp, MainFrame mainFrame) {
+        // Apply FlatLaf
+        // try {
+        //     UIManager.setLookAndFeel(new com.formdev.FlatLaf.FlatIntelliJLaf());
+        // } catch (Exception e) {
+        //     System.err.println("Không thể khởi tạo FlatLaf");
+        // }
+
         ClientApp.setMessageHandler(this::handleLine);
         this.match = match;
         this.me = me;
@@ -40,74 +46,75 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
         this.mainFrame = mainFrame;
         host = match.getHost();
 
-        setTitle("Multiplayer Room");
-        setSize(600, 400);
+        setTitle("🎮 Phòng chơi nhiều người");
+        setSize(1000, 600);
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         // ===== Main Panel =====
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
         // ===== Title =====
-        JLabel title = new JLabel("Lobby", SwingConstants.CENTER);
-        title.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        JLabel title = new JLabel("Phòng chờ", SwingConstants.CENTER);
+        title.setFont(new Font("Segoe UI", Font.BOLD, 22));
         mainPanel.add(title, BorderLayout.NORTH);
 
         // ===== Player Table =====
-        String[] columnNames = { "No.", "Player Name" };
+        String[] columnNames = { "STT", "Người chơi" };
         tableModel = new DefaultTableModel(columnNames, 0);
 
         playerTable = new JTable(tableModel);
         playerTable.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        playerTable.setRowHeight(28);
+        playerTable.setRowHeight(30);
+        playerTable.setFillsViewportHeight(true);
+        playerTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // Show grid
-        playerTable.setShowGrid(true);
-        playerTable.setGridColor(Color.GRAY);
+        JTableHeader header = playerTable.getTableHeader();
+        header.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        ((DefaultTableCellRenderer) header.getDefaultRenderer())
+                .setHorizontalAlignment(SwingConstants.CENTER);
 
-        // ===== Adjust No. column =====
         TableColumn sttColumn = playerTable.getColumnModel().getColumn(0);
-        sttColumn.setPreferredWidth(40); // narrow width
-        sttColumn.setMaxWidth(50); // cannot expand too wide
-        sttColumn.setMinWidth(35); // minimum size
-        sttColumn.setResizable(false); // fixed size
-
+        sttColumn.setPreferredWidth(50);
+        sttColumn.setMaxWidth(60);
         sttColumn.setCellRenderer(new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
-                    boolean isSelected, boolean hasFocus,
-                    int row, int column) {
+                    boolean isSelected, boolean hasFocus, int row, int column) {
                 JLabel cell = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row,
                         column);
-                cell.setFont(new Font("Segoe UI", Font.PLAIN, 12)); // smaller font
-                cell.setHorizontalAlignment(SwingConstants.CENTER); // center align
+                cell.setHorizontalAlignment(SwingConstants.CENTER);
                 return cell;
             }
         });
 
         JScrollPane scrollPane = new JScrollPane(playerTable);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // ===== Side Panel with Buttons =====
+        // ===== Buttons =====
         JPanel sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
-        sidePanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 0, 0));
+        sidePanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
 
-        inviteButton = new JButton("Invite");
-        startButton = new JButton("Start");
-        exitButton = new JButton("Exit");
+        inviteButton = new JButton("Mời");
+        startButton = new JButton("Bắt đầu");
+        exitButton = new JButton("Thoát");
 
         for (JButton btn : new JButton[] { startButton, inviteButton, exitButton }) {
             btn.setAlignmentX(Component.CENTER_ALIGNMENT);
-            btn.setMaximumSize(new Dimension(120, 35));
-            btn.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+            btn.setMaximumSize(new Dimension(140, 40));
+            btn.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            btn.setFocusPainted(false);
+            btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
             if (host != null && host.getPlayerId().equals(me.getPlayerId())) {
                 sidePanel.add(btn);
-                sidePanel.add(Box.createRigidArea(new Dimension(0, 10)));
+                sidePanel.add(Box.createRigidArea(new Dimension(0, 12)));
             } else if (btn == exitButton) {
                 sidePanel.add(btn);
-                sidePanel.add(Box.createRigidArea(new Dimension(0, 10)));
+                sidePanel.add(Box.createRigidArea(new Dimension(0, 12)));
             }
             btn.addActionListener(this);
         }
@@ -116,7 +123,6 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
 
         add(mainPanel);
         updatePlayerList(new ArrayList<>(match.getPlayerMatches()));
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
@@ -132,7 +138,7 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
         if (source == inviteButton) {
             if (host != null) {
                 if (findUserFrame == null || !findUserFrame.isShowing()) {
-                    findUserFrame = new FindUserFrame(host, match, tcp,this);
+                    findUserFrame = new FindUserFrame(host, match, tcp, this);
                     findUserFrame.setVisible(true);
                 } else {
                     findUserFrame.toFront();
@@ -140,8 +146,10 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
             }
         } else if (source == startButton) {
             if (match.getPlayerMatches().size() < 2) {
-                JOptionPane.showMessageDialog(this, "At least 2 players are required to start the game.",
-                        "Cannot Start Game", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this,
+                        "Cần ít nhất 2 người chơi để bắt đầu trò chơi.",
+                        "Không thể bắt đầu",
+                        JOptionPane.WARNING_MESSAGE);
                 return;
             } else {
                 var m = new JsonObject();
@@ -151,8 +159,9 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
                     tcp.send(JsonUtil.toJson(m));
                 } catch (IOException ex) {
                     ex.printStackTrace();
-                    JOptionPane.showMessageDialog(this, "Failed to send message: " +
-                            ex.getMessage(), "Network Error",
+                    JOptionPane.showMessageDialog(this,
+                            "Gửi lệnh thất bại: " + ex.getMessage(),
+                            "Lỗi mạng",
                             JOptionPane.ERROR_MESSAGE);
                 }
             }
@@ -169,7 +178,9 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
             tcp.send(JsonUtil.toJson(m));
         } catch (IOException ex) {
             ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Failed to send message: " + ex.getMessage(), "Network Error",
+            JOptionPane.showMessageDialog(this,
+                    "Không thể thoát phòng: " + ex.getMessage(),
+                    "Lỗi mạng",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -183,58 +194,50 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
                     mainFrame.reopen();
                     dispose();
                 }
-
                 case "EXIT_ROOM_HOST" -> {
                     JOptionPane.showMessageDialog(this,
-                    "The host has exited the game. The room will be closed.",
-                    "Room Closed",
-                    JOptionPane.INFORMATION_MESSAGE);
+                            "Chủ phòng đã thoát. Phòng sẽ bị đóng.",
+                            "Phòng đã đóng",
+                            JOptionPane.INFORMATION_MESSAGE);
                     mainFrame.reopen();
                     dispose();
                 }
-
                 case "EXIT_ROOM_GUEST" -> {
                     HandelMatchMulti updatedMatch = HandelMatchMulti.fromJson(msg.get("match").getAsString());
                     match = updatedMatch;
                     updatePlayerList(new ArrayList<>(updatedMatch.getPlayerMatches()));
                 }
-
                 case "INVITE_ACCEPT_MATCH_MULTI" -> {
                     HandelMatchMulti updatedMatch = HandelMatchMulti.fromJson(msg.get("match").getAsString());
                     this.match = updatedMatch;
-                    System.out.println(updatedMatch);
                     updatePlayerList(new ArrayList<>(updatedMatch.getPlayerMatches()));
                 }
-
                 case "INVITE_DECLINED" -> {
                     Player fromPlayer = Player.fromJson(msg.get("fromPlayer").getAsString());
                     showInviteDecline(fromPlayer);
                 }
-
                 case "GAME_MULTI_STARTED" -> {
                     try {
                         HandelMatchMulti match = HandelMatchMulti.fromJson(msg.get("match").getAsString());
-                        var game = new GameWindowMultiplayerFrame(match, tcp, mainFrame,me);
+                        var game = new GameWindowMultiplayerFrame(match, tcp, mainFrame, me);
                         game.setVisible(true);
                         game.startMemoryGame(match);
                         dispose();
                     } catch (Exception e) {
-                        System.out.println("ERROR in GAME_MULTI_STARTED: " + e.getMessage());
                         e.printStackTrace();
                     }
                 }
             }
-        } catch (Exception ignore) {
-        }
+        } catch (Exception ignore) {}
     }
 
     public void updatePlayerList(ArrayList<PlayerMatch> players) {
         match.setPlayerMatches(players);
-        tableModel.setRowCount(0); // Clear existing rows
+        tableModel.setRowCount(0);
         for (int i = 0; i < players.size(); i++) {
             PlayerMatch player = players.get(i);
             if (player.getPlayer().getPlayerId().equals(host.getPlayerId())) {
-                tableModel.addRow(new Object[] { i + 1, player.getPlayer().getNickname() + " (Host)" });
+                tableModel.addRow(new Object[] { i + 1, player.getPlayer().getNickname() + " (Chủ phòng)" });
             } else {
                 tableModel.addRow(new Object[] { i + 1, player.getPlayer().getNickname() });
             }
@@ -243,7 +246,7 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
 
     public void showInviteDecline(Player fromPlayer) {
         JOptionPane.showMessageDialog(this,
-                "'" + fromPlayer.getNickname() + "' đã từ chối lời mời chơi của bạn.",
+                "'" + fromPlayer.getNickname() + "' đã từ chối lời mời của bạn.",
                 "Lời mời bị từ chối",
                 JOptionPane.WARNING_MESSAGE);
     }
