@@ -40,8 +40,5 @@ public class Player {
     
     public void updateStatus(PlayerStatus newStatus){ this.status = newStatus; }
 }
-enum PlayerStatus {
-    ONLINE,
-    IN_GAME
-}
+
 

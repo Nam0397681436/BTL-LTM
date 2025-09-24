@@ -27,14 +27,26 @@ public class ClientHandler implements Runnable {
     @Override public void run() {
         try {
             String line;
-            while ((line = in.readLine()) != null) handle(line);
+            while ((line = in.readLine()) != null) {
+                handle(line);
+            }
         } catch (IOException ignore) {
         } finally {
-            if (me != null) OnlineRegistry.remove(me.getPlayerId());
+            try {
+                if (me != null){ 
+                    OnlineRegistry.remove(me.getPlayerId());
+                    //OnlineRegistry.unbindSession(me.getPlayerId()); 
+                }
+            } catch (Exception ignore2) {}
             try { in.close(); }  catch (Exception ignore2) {}
             try { out.close(); } catch (Exception ignore2) {}
             try { socket.close(); } catch (Exception ignore2) {}
         }
+    }
+
+    /** CHỈNH: helper check đăng nhập – đặt ở cấp class, không để trong handle() */
+    private boolean allowWithoutAuth(String type) {
+        return "AUTH_LOGIN".equals(type) || "AUTH_REGISTER".equals(type) || "PING".equals(type);
     }
 
     private void handle(String line) {
@@ -43,25 +55,56 @@ public class ClientHandler implements Runnable {
             String type = msg.has("type") ? msg.get("type").getAsString() : null;
             if (type == null) { send(err("MISSING_TYPE")); return; }
 
+            // CHỈNH: chặn khi chưa đăng nhập cho các type cần auth
+            if (!allowWithoutAuth(type) && me == null) {
+                send(err("Sai tài khoản hoặc mật khẩu"));
+                return;
+            }
+
             switch (type) {
-                case "PING" -> { var o = new JsonObject(); o.addProperty("type","PONG"); send(o); }
+                case "PING" -> {
+                    var o = new JsonObject();
+                    o.addProperty("type", "PONG");
+                    send(o);
+                }
 
                 /* ---------- Đăng nhập ---------- */
                 case "AUTH_LOGIN" -> {
-                    String u = msg.get("username").getAsString();
-                    String p = msg.get("password").getAsString();
-                    System.out.println("[AUTH_LOGIN] u=" + u);
-                    model.Player op = dao.login(u, p);
-                    if (p == null || p.isBlank() || u == null || u.isBlank()) { send(err("Sai username hoặc mật khẩu")); break; }
-                    this.me = op;
-                    OnlineRegistry.add(me);
-                    OnlineRegistry.bindSession(me.getPlayerId(), this);
-                    var ok = new JsonObject();
-                    ok.addProperty("type", "AUTH_OK");
-                    ok.addProperty("playerId", me.getPlayerId());
-                    ok.addProperty("nickname", me.getNickname());
-                    send(ok);
+                    String username = msg.get("username").getAsString();
+                    String password = msg.get("password").getAsString();
+
+                    try {
+                        Player found = dao.login(username, password);
+                        if (found == null) {
+                            send(err("Sai tài khoản hoặc mật khẩu"));
+                            break;
+                        }
+
+                        // CHẶN ĐĂNG NHẬP TRÙNG
+                        if (!OnlineRegistry.tryBindSession(found.getPlayerId(), this)) {
+                         var o = new JsonObject();
+                            o.addProperty("type", "AUTH_ERR");
+                            o.addProperty("reason", "Tài khoản đang được đăng nhập ở nơi khác");
+                            send(o);
+                            break;
+                        }
+
+                        // Đăng nhập thành công
+                        this.me = found;
+                        OnlineRegistry.add(me);                         // thêm vào ONLINE + broadcast
+                        OnlineRegistry.sendOnlineSnapshotTo(me.getPlayerId());
+
+                        var ok = new JsonObject();
+                        ok.addProperty("type", "AUTH_OK");
+                        ok.addProperty("playerId", me.getPlayerId());
+                        ok.addProperty("nickname", me.getNickname());
+                        send(ok);
+                    } catch (SQLException ex) {
+                        send(err("Lỗi CSDL: " + ex.getMessage()));
+                    }
                 }
+
+
                 /* ---------- Đăng kí ---------- */
                 case "AUTH_REGISTER" -> {
                     String u = msg.get("username").getAsString();
@@ -129,8 +172,7 @@ public class ClientHandler implements Runnable {
                 /* ---------- HISTORY ---------- */
                 case "GET_HISTORY" -> {
                     int limit = msg.has("limit") ? msg.get("limit").getAsInt() : 50;
-                    if (me == null) { send(err("NOT_AUTH")); break; }
-                    
+                    // me đã đảm bảo != null nhờ chặn ở đầu
                     var rows = dao.getHistory(me.getPlayerId(), limit);
                     var arr = new com.google.gson.JsonArray();
 
@@ -141,11 +183,11 @@ public class ClientHandler implements Runnable {
                         o.addProperty("startTime", String.valueOf(r.get("startTime")));
                         o.addProperty("endTime", String.valueOf(r.get("endTime")));
                         o.addProperty("score", ((Number) r.get("score")).intValue());
-                        
+
                         String result = String.valueOf(r.get("isWinner"));
                         o.addProperty("result", result);
                         o.addProperty("isWinner", "WIN".equalsIgnoreCase(result));
-                        
+
                         arr.add(o);
                     }
                     JsonObject out = new JsonObject();
@@ -156,9 +198,96 @@ public class ClientHandler implements Runnable {
 
                 /* ---------- LOGOUT ---------- */
                 case "LOGOUT" -> {
-                    if (me != null) OnlineRegistry.remove(me.getPlayerId());
+                    if (me != null){ 
+                        OnlineRegistry.remove(me.getPlayerId());
+                        //OnlineRegistry.unbindSession(me.getPlayerId());
+                    }
                     var out = new JsonObject(); out.addProperty("type","LOGOUT_OK"); send(out);
-                    try { socket.close(); } catch (IOException ignore) {}
+                    // try { socket.close(); } catch (IOException ignore) {}///
+                }
+
+                /* ---------- THÁCH ĐẤU ---------- (dành cho Năm)*/
+                case "INVITE" -> {
+                    String playerInvite = msg.get("PLAYER_INVITE").getAsString();
+                    String targetPlayer = msg.get("PLAYER").getAsString();
+                    
+                    // Kiểm tra người gửi có phải là người đang đăng nhập không
+                    if (!playerInvite.equals(me.getPlayerId())) {
+                        send(err("Không thể gửi thách đấu thay người khác"));
+                        break;
+                    }
+                    
+                    // Kiểm tra đối phương có online không
+                    if (!OnlineRegistry.isOnline(targetPlayer)) {
+                        send(err("Đối phương không online"));
+                        break;
+                    }
+                    
+                    // Gửi thách đấu cho đối phương
+                    JsonObject challengeMsg = new JsonObject();
+                    challengeMsg.addProperty("type", "INVITE");
+                    challengeMsg.addProperty("PLAYER_INVITE", playerInvite);
+                    challengeMsg.addProperty("PLAYER", targetPlayer);
+                    challengeMsg.addProperty("inviterName", me.getNickname());
+                    
+                    sendToPlayer(targetPlayer, challengeMsg);
+                    
+                    // Thông báo cho người gửi rằng đã gửi thách đấu
+                    JsonObject confirmMsg = new JsonObject();
+                    confirmMsg.addProperty("type", "CHALLENGE_SENT");
+                    confirmMsg.addProperty("targetPlayer", targetPlayer);
+                    send(confirmMsg);
+                }
+
+                /* ---------- PHẢN HỒI THÁCH ĐẤU ---------- */
+                case "START_GAME" -> {
+                    String inviterId = msg.get("inviterId").getAsString();
+                    boolean accepted = msg.get("accepted").getAsBoolean();
+                    
+                    // Gửi phản hồi cho người gửi thách đấu
+                    JsonObject responseMsg = new JsonObject();
+                    responseMsg.addProperty("type", "START_GAME");
+                    responseMsg.addProperty("inviterId", me.getPlayerId()); // ID của người chấp nhận
+                    responseMsg.addProperty("accepted", accepted);
+                    responseMsg.addProperty("opponentName", me.getNickname());
+                    
+                    sendToPlayer(inviterId, responseMsg);
+                }
+
+                /* ---------- RỜI PHÒNG ĐẤU ---------- */
+                case "LEAVE_MATCH" -> {
+                    String opponentId = msg.get("opponentId").getAsString();
+                    
+                    // Thông báo cho đối phương rằng người này đã rời phòng
+                    JsonObject leaveMsg = new JsonObject();
+                    leaveMsg.addProperty("type", "OPPONENT_LEFT");
+                    leaveMsg.addProperty("playerId", me.getPlayerId());
+                    leaveMsg.addProperty("playerName", me.getNickname());
+                    
+                    sendToPlayer(opponentId, leaveMsg);
+                    
+                    // Thông báo cho người này rằng đã rời phòng thành công
+                    JsonObject confirmMsg = new JsonObject();
+                    confirmMsg.addProperty("type", "LEFT_MATCH");
+                    send(confirmMsg);
+                }
+
+                /* ---------- ĐẦU HÀNG ---------- */
+                case "SURRENDER" -> {
+                    String opponentId = msg.get("opponentId").getAsString();
+                    
+                    // Thông báo cho đối phương rằng người này đã đầu hàng
+                    JsonObject surrenderMsg = new JsonObject();
+                    surrenderMsg.addProperty("type", "OPPONENT_SURRENDERED");
+                    surrenderMsg.addProperty("playerId", me.getPlayerId());
+                    surrenderMsg.addProperty("playerName", me.getNickname());
+                    
+                    sendToPlayer(opponentId, surrenderMsg);
+                    
+                    // Thông báo cho người này rằng đã đầu hàng
+                    JsonObject confirmMsg = new JsonObject();
+                    confirmMsg.addProperty("type", "SURRENDERED");
+                    send(confirmMsg);
                 }
 
                 default -> send(err("Unknown type: " + type));
@@ -167,6 +296,7 @@ public class ClientHandler implements Runnable {
             e.printStackTrace();
             send(err("SERVER_ERROR: " + e.getMessage()));
         }
+        // CHÚ Ý: không unregister ở đây nữa, đã làm trong finally của run()
     }
 
     /* gửi JSON NDJSON */
@@ -176,6 +306,14 @@ public class ClientHandler implements Runnable {
             out.write("\n");
             out.flush();
         } catch (IOException ignore) {}
+    }
+
+    /* Helper method để gửi message cho người chơi cụ thể */
+    private static void sendToPlayer(String playerId, JsonObject message) {
+        ClientHandler handler = OnlineRegistry.getHandler(playerId);
+        if (handler != null) {
+            handler.send(message);
+        }
     }
 
     private static JsonObject err(String msg) {

@@ -23,27 +23,21 @@ public class MainFrame extends JFrame {
     private final String myPlayerId;
     private final String nickname;
     private client.ui.HistoryFrame historyFrame;
-    
+    private client.ui.LoginFrame loginFrame;
 
     // Bảng người chơi online (3 cột)
-    private final DefaultTableModel playersModel =
-            new DefaultTableModel(new Object[]{"PlayerId", "Player", "Action"}, 0) {
-                @Override public boolean isCellEditable(int r, int c) { return c == 2; }
-            };
+    private final DefaultTableModel playersModel=new DefaultTableModel(new Object[]{"PlayerId","Player","Action"},0){@Override public boolean isCellEditable(int r,int c){return c==2;}};
     private JTable tblPlayers;
     private TableRowSorter<DefaultTableModel> sorter;
 
     // Bảng BXH
-    private final DefaultTableModel lbModel =
-            new DefaultTableModel(new Object[]{"Nickname", "TotalScore", "Wins"}, 0) {
-                @Override public boolean isCellEditable(int r, int c) { return false; }
-            };
+    private final DefaultTableModel lbModel=new DefaultTableModel(new Object[]{"Nickname","TotalScore","Wins"},0){@Override public boolean isCellEditable(int r,int c){return false;}};
     private JTable tblLb;
 
     private final CardLayout cards = new CardLayout();
     private final JPanel center = new JPanel(cards);
 
-    private final JComboBox<String> cbType = new JComboBox<>(new String[]{"ID", "Nickname"});
+    private final JComboBox<String> cbType = new JComboBox<>(new String[] { "ID", "Nickname" });
     private final JTextField tfQuery = new JTextField(12);
 
     public MainFrame(TcpClient tcp, String myPlayerId, String nickname) {
@@ -51,6 +45,14 @@ public class MainFrame extends JFrame {
         this.tcp = tcp;
         this.myPlayerId = myPlayerId;
         this.nickname = nickname;
+    }
+
+    public MainFrame(TcpClient tcp, String myPlayerId, String nickname, client.ui.LoginFrame loginFrame) {
+        super("Màn hình chính – " + nickname);
+        this.tcp = tcp;
+        this.myPlayerId = myPlayerId;
+        this.nickname = nickname;
+        this.loginFrame = loginFrame;
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1024, 640);
@@ -81,8 +83,10 @@ public class MainFrame extends JFrame {
 
         // bảng người chơi
         tblPlayers = new JTable(playersModel) {
-            @Override public boolean isCellEditable(int row, int col) {
-                if (col != 2) return false;
+            @Override
+            public boolean isCellEditable(int row, int col) {
+                if (col != 2)
+                    return false;
                 Object v = getModel().getValueAt(row, 2);
                 return v != null && "Thách đấu".equals(v.toString());
             }
@@ -94,7 +98,7 @@ public class MainFrame extends JFrame {
         // Renderer + Editor cho nút Action
         tblPlayers.getColumn("Action").setCellRenderer(new ButtonRenderer());
         tblPlayers.getColumn("Action").setCellEditor(new ButtonEditor(modelRow -> {
-            String targetId   = String.valueOf(playersModel.getValueAt(modelRow, 0));
+            String targetId = String.valueOf(playersModel.getValueAt(modelRow, 0));
             String targetName = String.valueOf(playersModel.getValueAt(modelRow, 1));
             invitePvp(targetId, targetName);
         }));
@@ -122,28 +126,36 @@ public class MainFrame extends JFrame {
         main.add(left, BorderLayout.WEST);
         main.add(center, BorderLayout.CENTER);
         setContentPane(main);
-        
-        
+
         addWindowListener(new java.awt.event.WindowAdapter() {
-            @Override public void windowClosing(java.awt.event.WindowEvent e) {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
                 try {
                     var m = new com.google.gson.JsonObject();
                     m.addProperty("type", "LOGOUT");
                     tcp.send(client.JsonUtil.toJson(m));
-                    try { Thread.sleep(150); } catch (InterruptedException ignored) {}
+                    try {
+                        Thread.sleep(150);
+                    } catch (InterruptedException ignored) {
+                    }
                 } catch (Exception ex) {
                     // ignore
                 }
                 // để mặc định EXIT_ON_CLOSE sẽ đóng app
             }
         });
-        
+
         // actions
-        btnPlayers.addActionListener(e -> { cards.show(center, "players"); loadPlayers(); });
-        btnLeaderboard.addActionListener(e -> { cards.show(center, "lb"); loadLeaderboard(); });
+        btnPlayers.addActionListener(e -> {
+            cards.show(center, "players");
+            loadPlayers();
+        });
+        btnLeaderboard.addActionListener(e -> {
+            cards.show(center, "lb");
+            loadLeaderboard();
+        });
         btnLogout.addActionListener(e -> sendType("LOGOUT"));
     }
-     
 
     private JPanel buildLeftPane() {
         var wrap = new JPanel();
@@ -165,10 +177,11 @@ public class MainFrame extends JFrame {
         JButton btnCreate = softButton("Tạo phòng đấu", "FileView.computerIcon");
         btnHistory.addActionListener(e -> {
             var m = new com.google.gson.JsonObject();
-            m.addProperty("type","GET_HISTORY");
-            m.addProperty("limit",100);
-            try { tcp.send(client.JsonUtil.toJson(m)); }
-            catch(Exception ex) {
+            m.addProperty("type", "GET_HISTORY");
+            m.addProperty("limit", 100);
+            try {
+                tcp.send(client.JsonUtil.toJson(m));
+            } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Mạng lỗi:" + ex.getMessage(),
                         "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
@@ -194,13 +207,32 @@ public class MainFrame extends JFrame {
         var btnClear = softButton("Xóa lọc", "FileChooser.homeFolderIcon");
 
         btnSearch.addActionListener(e -> applySearch());
-        btnClear.addActionListener(e -> { tfQuery.setText(""); sorter.setRowFilter(null); });
+        btnClear.addActionListener(e -> {
+            tfQuery.setText("");
+            sorter.setRowFilter(null);
+        });
 
-        gc.gridx=0; gc.gridy=0; gc.weightx=0; cardSearch.add(lbType, gc);
-        gc.gridx=1; gc.gridy=0; gc.weightx=1; cardSearch.add(cbType, gc);
-        gc.gridx=0; gc.gridy=1; gc.gridwidth=2; cardSearch.add(tfQuery, gc);
-        gc.gridwidth=1; gc.gridx=0; gc.gridy=2; gc.weightx=0.5; cardSearch.add(btnSearch, gc);
-        gc.gridx=1; gc.gridy=2; gc.weightx=0.5; cardSearch.add(btnClear, gc);
+        gc.gridx = 0;
+        gc.gridy = 0;
+        gc.weightx = 0;
+        cardSearch.add(lbType, gc);
+        gc.gridx = 1;
+        gc.gridy = 0;
+        gc.weightx = 1;
+        cardSearch.add(cbType, gc);
+        gc.gridx = 0;
+        gc.gridy = 1;
+        gc.gridwidth = 2;
+        cardSearch.add(tfQuery, gc);
+        gc.gridwidth = 1;
+        gc.gridx = 0;
+        gc.gridy = 2;
+        gc.weightx = 0.5;
+        cardSearch.add(btnSearch, gc);
+        gc.gridx = 1;
+        gc.gridy = 2;
+        gc.weightx = 0.5;
+        cardSearch.add(btnClear, gc);
 
         wrap.add(title);
         wrap.add(cardActions);
@@ -214,12 +246,17 @@ public class MainFrame extends JFrame {
 
     private JButton softButton(String text, String uiKeyIcon) {
         JButton b = new JButton(text);
-        try { Icon ico = (Icon) UIManager.get(uiKeyIcon); if (ico != null) b.setIcon(ico); } catch (Exception ignore) {}
+        try {
+            Icon ico = (Icon) UIManager.get(uiKeyIcon);
+            if (ico != null)
+                b.setIcon(ico);
+        } catch (Exception ignore) {
+        }
         b.setFocusPainted(false);
         b.setBorder(BorderFactory.createCompoundBorder(
-                new javax.swing.border.LineBorder(new Color(210,214,222),1,true),
-                BorderFactory.createEmptyBorder(8,12,8,12)));
-        b.setBackground(new Color(245,247,250));
+                new javax.swing.border.LineBorder(new Color(210, 214, 222), 1, true),
+                BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+        b.setBackground(new Color(245, 247, 250));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return b;
     }
@@ -227,31 +264,32 @@ public class MainFrame extends JFrame {
     private JButton topButton(String text) {
         JButton b = new JButton(text);
         b.setFocusPainted(false);
-        b.setBorder(BorderFactory.createEmptyBorder(8,16,8,16));
+        b.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         return b;
     }
 
     private JButton dangerButton(String text) {
         JButton b = new JButton(text);
-        b.setForeground(new Color(180,35,35));
+        b.setForeground(new Color(180, 35, 35));
         b.setFocusPainted(false);
-        b.setBorder(BorderFactory.createEmptyBorder(8,16,8,16));
+        b.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         return b;
     }
 
     private TitledBorder cardBorder(String title) {
         return BorderFactory.createTitledBorder(
-                BorderFactory.createLineBorder(new Color(220,225,232),1,true),
+                BorderFactory.createLineBorder(new Color(220, 225, 232), 1, true),
                 title, TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION,
-                uiFont().deriveFont(Font.BOLD)
-        );
+                uiFont().deriveFont(Font.BOLD));
     }
 
     /** Font an toàn (không null) */
     private Font uiFont() {
         Font f = UIManager.getFont("Label.font");
-        if (f == null) f = (new JLabel()).getFont();
-        if (f == null) f = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+        if (f == null)
+            f = (new JLabel()).getFont();
+        if (f == null)
+            f = new Font(Font.SANS_SERIF, Font.PLAIN, 12);
         return f;
     }
 
@@ -259,47 +297,76 @@ public class MainFrame extends JFrame {
 
     private void applySearch() {
         String q = tfQuery.getText().trim();
-        if (q.isEmpty()) { sorter.setRowFilter(null); return; }
+        if (q.isEmpty()) {
+            sorter.setRowFilter(null);
+            return;
+        }
         int col = cbType.getSelectedIndex() == 0 ? 0 : 1;
         sorter.setRowFilter(RowFilter.regexFilter("(?i)" + java.util.regex.Pattern.quote(q), col));
     }
 
     private void enableSingleClickButton(JTable table, int actionCol) {
         table.addMouseListener(new MouseAdapter() {
-            @Override public void mousePressed(MouseEvent e) {
+            @Override
+            public void mousePressed(MouseEvent e) {
                 int row = table.rowAtPoint(e.getPoint());
                 int col = table.columnAtPoint(e.getPoint());
-                if (row < 0 || col != actionCol) return;
-                if (!table.isCellEditable(row, col)) return;
+                if (row < 0 || col != actionCol)
+                    return;
+                if (!table.isCellEditable(row, col))
+                    return;
                 if (table.editCellAt(row, col, e)) {
                     Component editor = table.getEditorComponent();
-                    if (editor instanceof JButton b) b.doClick();
+                    if (editor instanceof JButton b)
+                        b.doClick();
                 }
             }
         });
     }
 
     private void invitePvp(String toUserId, String toName) {
-        if (toUserId.equals(myPlayerId)) return;
+        if (toUserId.equals(myPlayerId))
+            return;
         var m = new JsonObject();
-        m.addProperty("type", "INVITE_PVP");
-        m.addProperty("toUserId", toUserId);
-        try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
+        m.addProperty("type", "INVITE");
+        m.addProperty("PLAYER_INVITE", myPlayerId);
+        m.addProperty("PLAYER", toUserId);
+        try {
+            tcp.send(JsonUtil.toJson(m));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
     private void loadPlayers() {
-        var m = new JsonObject(); m.addProperty("type", "LIST_PLAYERS");
-        try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
+        var m = new JsonObject();
+        m.addProperty("type", "LIST_PLAYERS");
+        try {
+            tcp.send(JsonUtil.toJson(m));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
     private void loadLeaderboard() {
-        var m = new JsonObject(); m.addProperty("type", "GET_LEADERBOARD"); m.addProperty("limit", 50);
-        try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
+        var m = new JsonObject();
+        m.addProperty("type", "GET_LEADERBOARD");
+        m.addProperty("limit", 50);
+        try {
+            tcp.send(JsonUtil.toJson(m));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
     private void sendType(String t) {
-        var m = new JsonObject(); m.addProperty("type", t);
-        try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
+        var m = new JsonObject();
+        m.addProperty("type", t);
+        try {
+            tcp.send(JsonUtil.toJson(m));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
     }
 
     /* ================= Router nhận message ================= */
@@ -417,7 +484,9 @@ public class MainFrame extends JFrame {
                 }
                 case "LOGOUT_OK" -> {
                     JOptionPane.showMessageDialog(this, "Đã đăng xuất!");
-                    System.exit(0);
+                    LoginFrame lf = new LoginFrame(tcp);
+                    lf.setVisible(true);
+                    this.setVisible(false);
                 }
                 case "AUTH_ERR" -> {
                     String reason = msg.has("reason") ? msg.get("reason").getAsString() : "";
@@ -443,14 +512,133 @@ public class MainFrame extends JFrame {
                         this, m, "Đăng nhập thất bại", javax.swing.JOptionPane.ERROR_MESSAGE
                     );
                 }
+                case "INVITE" -> {
+                    String inviterId = msg.get("PLAYER_INVITE").getAsString();
+                    String inviterName = msg.has("inviterName") ? msg.get("inviterName").getAsString() : "Người chơi";
+                    showChallengeDialog(inviterId, inviterName);
+                }
+                case "START_GAME" -> {
+                    String inviterId = msg.get("inviterId").getAsString();
+                    boolean accepted = msg.get("accepted").getAsBoolean();
+                    String opponentName = msg.has("opponentName") ? msg.get("opponentName").getAsString() : "Đối thủ";
+                    
+                    if (accepted) {
+                        openMatchFrame(inviterId, opponentName);
+                    } else {
+                        // Đối phương từ chối thách đấu
+                        JOptionPane.showMessageDialog(this, 
+                                opponentName + " đã từ chối thách đấu.", 
+                                "Thách đấu bị từ chối", 
+                                JOptionPane.INFORMATION_MESSAGE);
+                    }
+                }
+                case "CHALLENGE_SENT" -> {
+                    String targetPlayer = msg.get("targetPlayer").getAsString();
+                    JOptionPane.showMessageDialog(this, 
+                            "Đã gửi thách đấu cho " + targetPlayer, 
+                            "Thách đấu đã gửi", 
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
+                case "OPPONENT_LEFT" -> {
+                    String playerName = msg.get("playerName").getAsString();
+                    JOptionPane.showMessageDialog(this, 
+                            playerName + " đã rời phòng đấu.", 
+                            "Đối phương rời phòng", 
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
+                case "OPPONENT_SURRENDERED" -> {
+                    String playerName = msg.get("playerName").getAsString();
+                    JOptionPane.showMessageDialog(this, 
+                            playerName + " đã đầu hàng. Bạn thắng!", 
+                            "Đối phương đầu hàng", 
+                            JOptionPane.INFORMATION_MESSAGE);
+                }
             }
-        } catch (Exception ignore) {}
+        }catch(
+
+    Exception ignore)
+    {
+    }
     }
 
     private int findRowById(String playerId) {
         for (int i = 0; i < playersModel.getRowCount(); i++)
-            if (playerId.equals(playersModel.getValueAt(i, 0))) return i;
+            if (playerId.equals(playersModel.getValueAt(i, 0)))
+                return i;
         return -1;
+    }
+
+    private void showChallengeDialog(String inviterId, String inviterName) {
+        JDialog dialog = new JDialog(this, "Thách đấu", true);
+        dialog.setSize(400, 200);
+        dialog.setLocationRelativeTo(this);
+        dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // Thông báo
+        JLabel messageLabel = new JLabel("<html><div style='text-align: center;'>" +
+                "<h3>Thách đấu từ " + inviterName + "</h3>" +
+                "<p>Bạn có muốn chấp nhận thách đấu không?</p>" +
+                "</div></html>");
+        messageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        // Panel nút bấm
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton acceptBtn = new JButton("Chấp nhận");
+        JButton rejectBtn = new JButton("Từ chối");
+
+        acceptBtn.addActionListener(e -> {
+            dialog.dispose();
+            sendChallengeResponse(inviterId, true);
+            // Chuyển sang MatchFrame
+            openMatchFrame(inviterId, inviterName);
+        });
+
+        rejectBtn.addActionListener(e -> {
+            dialog.dispose();
+            sendChallengeResponse(inviterId, false);
+        });
+
+        buttonPanel.add(acceptBtn);
+        buttonPanel.add(rejectBtn);
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+
+    private void sendChallengeResponse(String inviterId, boolean accepted) {
+        var m = new JsonObject();
+        m.addProperty("type", "START_GAME");
+        m.addProperty("inviterId", inviterId);
+        m.addProperty("accepted", accepted);
+        try {
+            tcp.send(JsonUtil.toJson(m));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void openMatchFrame(String opponentId, String opponentName) {
+        // Tạo và hiển thị MatchSolo
+        MatchSolo matchSolo = new MatchSolo(tcp, myPlayerId, nickname, opponentId, opponentName);
+        matchSolo.setMainFrame(this);
+
+        // Chuyển message handler cho MatchSolo
+        ClientApp.setMessageHandler(line -> {
+            try {
+                var msg = JsonUtil.fromJson(line, JsonObject.class);
+                matchSolo.handleMessage(msg);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
+        matchSolo.setVisible(true);
+        this.setVisible(false);
     }
 
     /* ===== Renderer/Editor cho nút trong bảng ===== */
@@ -463,14 +651,15 @@ public class MainFrame extends JFrame {
             setBackground(new Color(240, 244, 248));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         }
-        @Override public Component getTableCellRendererComponent(JTable table, Object value,
-                                                                 boolean isSelected, boolean hasFocus,
-                                                                 int row, int column) {
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus,
+                int row, int column) {
             setText(value == null ? "" : value.toString());
             return this;
         }
     }
-
 
     private static class ButtonEditor extends AbstractCellEditor
             implements TableCellEditor, java.awt.event.ActionListener {
@@ -496,11 +685,16 @@ public class MainFrame extends JFrame {
             return btn;
         }
 
-        @Override public Object getCellEditorValue() { return btn.getText(); }
+        @Override
+        public Object getCellEditorValue() {
+            return btn.getText();
+        }
 
-        @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+        @Override
+        public void actionPerformed(java.awt.event.ActionEvent e) {
             try {
-                if (modelRow >= 0) onClick.accept(modelRow);
+                if (modelRow >= 0)
+                    onClick.accept(modelRow);
             } finally {
                 fireEditingStopped();
             }

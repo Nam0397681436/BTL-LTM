@@ -3,6 +3,7 @@ package server;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import model.Player;
+import model.PlayerStatus;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,13 +21,27 @@ public class OnlineRegistry {
             SESSIONS.put(playerId, h);
         }
     }
-
-    public static void unbindSession(String playerId) {
-        if (playerId != null) {
-            SESSIONS.remove(playerId);
-        }
+     // Player có đang có session hoạt động không?
+    public static boolean isOnline(String playerId) {
+        if (playerId == null) return false;
+        return SESSIONS.containsKey(playerId);
     }
-
+    public static synchronized boolean tryBindSession(String playerId, ClientHandler h) {
+        if (playerId == null || h == null) return false;
+        return SESSIONS.putIfAbsent(playerId, h) == null; 
+    }
+    /** Giải phóng phiên, chỉ xóa nếu đúng handler đang nắm (tránh xóa nhầm). */
+    public static void unbind(String playerId, ClientHandler h) {
+        if (playerId == null || h == null) return;
+        SESSIONS.computeIfPresent(playerId, (k, v) -> (v == h) ? null : v);
+    }
+    
+    /** Lấy ClientHandler của một player cụ thể */
+    public static ClientHandler getHandler(String playerId) {
+        if (playerId == null) return null;
+        return SESSIONS.get(playerId);
+    }
+    
     /* ================== Online set ================== */
 
     /** Thêm (hoặc cập nhật) 1 người chơi là online và thông báo những người khác */
@@ -51,13 +66,29 @@ public class OnlineRegistry {
 
     /**
      * Cập nhật trạng thái của player:
-     * - online=true  -> add()
-     * - online=false -> remove()
      * Sau đó broadcast toàn bộ danh sách online hiện tại cho tất cả client.
      */
-    public static void updateStatus(Player player, boolean online) {
+    public static void updateStatus(Player player, String status) {
         if(player == null || player.getPlayerId() == null)   return;
-        if (online) add(player); else if (player != null) remove(player.getPlayerId());
+        switch(status){
+            case "online":
+                add(player);
+                break;
+            
+            case "offline":
+                remove(player.getPlayerId());
+                break;
+                
+            case "in_game":
+                Player p = ONLINE.get(player.getPlayerId());
+                if(p != null){
+                    p.setStatus(PlayerStatus.IN_GAME);
+                }
+                break;
+             
+            default:
+                System.err.println("Unknown status: " + status);
+        }
         broadcastOnlineList();
     }
 

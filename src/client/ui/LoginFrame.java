@@ -153,10 +153,10 @@ public class LoginFrame extends JFrame {
                     String nick = msg.get("nickname").getAsString();
                     SwingUtilities.invokeLater(() -> {
                         try {
-                            MainFrame main = new MainFrame(tcp, myId, nick);
+                            MainFrame main = new MainFrame(tcp, myId, nick, this);
                             ClientApp.setMessageHandler(main::handleLine);
                             main.setVisible(true);
-                            dispose();
+                            setVisible(false); // Ẩn LoginFrame thay vì dispose
                         } catch (Throwable t) {
                             t.printStackTrace();
                             JOptionPane.showMessageDialog(this,
@@ -176,10 +176,10 @@ public class LoginFrame extends JFrame {
                     tcp,
                     (playerId, nickname) -> {   // onSuccess: mở MainFrame
                         try {
-                            MainFrame main = new MainFrame(tcp, playerId, nickname);
+                            MainFrame main = new MainFrame(tcp, playerId, nickname, this);
                             ClientApp.setMessageHandler(main::handleLine);
                             main.setVisible(true);
-                            dispose();
+                            setVisible(false); // Ẩn LoginFrame thay vì dispose
                         } catch (Throwable t) {
                             t.printStackTrace();
                             JOptionPane.showMessageDialog(this,

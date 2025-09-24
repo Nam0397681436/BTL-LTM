@@ -1,10 +1,8 @@
 package client;
 
 import client.net.TcpClient;
-
-import javax.swing.*;
 import java.util.function.Consumer;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 
 
 public class ClientApp {
@@ -31,7 +29,7 @@ public class ClientApp {
             SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
                     null,
                     "Không thể kết nối tới server " +
-                            System.getProperty("HOST", "127.0.0.1") + ":" + Integer.getInteger("PORT", 5555) +
+                            System.getProperty("HOST", "26.239.82.76") + ":" + Integer.getInteger("PORT", 5555) +
                             "\nHãy kiểm tra server đã chạy và firewall cho phép kết nối.",
                     "Lỗi mạng", JOptionPane.ERROR_MESSAGE
             ));
