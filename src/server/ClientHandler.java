@@ -68,7 +68,6 @@ public class ClientHandler implements Runnable {
         return "AUTH_LOGIN".equals(type) || "AUTH_REGISTER".equals(type) || "PING".equals(type);
     }
 
-
     private void handle(String line) {
         try {
             JsonObject msg = server.JsonUtil.fromJson(line, JsonObject.class);
@@ -114,7 +113,6 @@ public class ClientHandler implements Runnable {
 
                         // Đăng nhập thành công
                         this.me = found;
-                        me.setStatus(PlayerStatus.ONLINE);
                         OnlineRegistry.add(me); // thêm vào ONLINE + broadcast
                         OnlineRegistry.bindSession(me.getPlayerId(), this);
                         OnlineRegistry.sendOnlineSnapshotTo(me.getPlayerId());
@@ -384,7 +382,7 @@ public class ClientHandler implements Runnable {
                     send(data);
                 }
 
-                case "INVITE_MATCH_MULTI_USER" -> {
+                case "INVITE_MULTIPLE_USERS_TO_MATCH" -> {
                     if (me == null) {
                         send(err("NOT_AUTH"));
                         break;
@@ -393,7 +391,7 @@ public class ClientHandler implements Runnable {
                     ClientHandler targetOut = OnlineRegistry.getHandler(toPlayerId);
                     if (targetOut != null) {
                         var m = new JsonObject();
-                        m.addProperty("type", "INVITE_MATCH_MULTI_USER");
+                        m.addProperty("type", "INVITE_MULTIPLE_USERS_TO_MATCH");
                         m.addProperty("fromPlayer", me.toString());
                         m.addProperty("matchId", msg.get("matchId").getAsInt());
                         targetOut.send(m);
@@ -402,7 +400,7 @@ public class ClientHandler implements Runnable {
                     }
                 }
 
-                case "INVITE_ACCEPT_MATCH_MULTI" -> {
+                case "ACCEPT_MULTIPLE_USERS_MATCH_INVITE" -> {
                     if (me == null) {
                         send(err("NOT_AUTH"));
                         break;
@@ -436,7 +434,7 @@ public class ClientHandler implements Runnable {
                         ClientHandler targetOut2 = OnlineRegistry.getHandler(user.getPlayerId());
                         if (targetOut2 != null) {
                             var m = new JsonObject();
-                            m.addProperty("type", "INVITE_ACCEPT_MATCH_MULTI");
+                            m.addProperty("type", "ACCEPT_MULTIPLE_USERS_MATCH_INVITE");
                             m.addProperty("match", match.toString());
                             if (player.getPlayer().getPlayerId().equals(me.getPlayerId()))
                                 m.addProperty("me", me.toString());
@@ -445,7 +443,7 @@ public class ClientHandler implements Runnable {
                     }
                 }
 
-                case "INVITE_DECLINE" -> {
+                case "DECLINE_MULTIPLE_USERS_MATCH_INVITE" -> {
                     if (me == null) {
                         send(err("NOT_AUTH"));
                         break;
@@ -454,7 +452,7 @@ public class ClientHandler implements Runnable {
                     ClientHandler targetOut = OnlineRegistry.getHandler(toPlayerId);
                     if (targetOut != null) {
                         var m = new JsonObject();
-                        m.addProperty("type", "INVITE_DECLINED");
+                        m.addProperty("type", "DECLINE_MULTIPLE_USERS_MATCH_INVITED");
                         m.addProperty("fromPlayer", me.toString());
                         targetOut.send(m);
                     } else {
@@ -462,7 +460,12 @@ public class ClientHandler implements Runnable {
                     }
                 }
 
-                case "EXIT_ROOM" -> {
+                case "EXIT_ROOM_MULTIPLE" -> {
+                    if (me == null) {
+                        send(err("NOT_AUTH"));
+                        break;
+                    }
+                    System.out.println("Received EXIT_ROOM_MULTIPLE from " + me.getNickname());
                     Integer matchId = Integer.parseInt(msg.get("matchId").getAsString());
                     HandelMatchMulti match = MatchOn.getMultiMatch(matchId);
                     if (match != null) {
@@ -478,7 +481,7 @@ public class ClientHandler implements Runnable {
                                 ClientHandler targetOut = OnlineRegistry.getHandler(user.getPlayerId());
                                 if (targetOut != null) {
                                     var m = new JsonObject();
-                                    m.addProperty("type", "EXIT_ROOM_HOST");
+                                    m.addProperty("type", "EXIT_ROOM_MULTIPLE_HOST");
                                     targetOut.send(m);
                                 }
                             }
@@ -491,19 +494,19 @@ public class ClientHandler implements Runnable {
                                 ClientHandler targetOut = OnlineRegistry.getHandler(user.getPlayerId());
                                 if (targetOut != null) {
                                     var m = new JsonObject();
-                                    m.addProperty("type", "EXIT_ROOM_GUEST");
+                                    m.addProperty("type", "EXIT_ROOM_MULTIPLE_GUEST");
                                     m.addProperty("match", match.toString());
                                     targetOut.send(m);
                                 }
                             }
                         }
                         var v = new JsonObject();
-                        v.addProperty("type", "EXIT_ROOM_ME");
+                        v.addProperty("type", "EXIT_ROOM_MULTIPLE_ME");
                         send(v);
                         out.flush();
                     }
                 }
-                case "START_GAME_MULTI" -> {
+                case "START_GAME_MULTIPLE" -> {
                     Integer matchId = Integer.parseInt(msg.get("matchId").getAsString());
                     HandelMatchMulti match = MatchOn.getMultiMatch(matchId);
                     if (match == null) {
@@ -516,14 +519,14 @@ public class ClientHandler implements Runnable {
                         ClientHandler targetOut = OnlineRegistry.getHandler(user.getPlayerId());
                         if (targetOut != null) {
                             var m = new JsonObject();
-                            m.addProperty("type", "GAME_MULTI_STARTED");
+                            m.addProperty("type", "GAME_MULTIPLE_STARTED");
                             m.addProperty("match", match.toString());
                             targetOut.send(m);
                         }
                     }
                 }
 
-                case "SUBMIT_ANSWER" -> {
+                case "SUBMIT_MULTIPLE_ANSWERS" -> {
                     if (me == null) {
                         send(err("NOT_AUTH"));
                         break;
@@ -602,7 +605,7 @@ public class ClientHandler implements Runnable {
                     }
                 }
 
-                case "LEAVE_GAME" -> {
+                case "EXIT_GAME" -> {
                     int matchId = msg.get("matchId").getAsInt();
                     HandelMatchMulti match = MatchOn.getMultiMatch(matchId);
                     if (match != null) {
@@ -622,19 +625,19 @@ public class ClientHandler implements Runnable {
                             }
                             OnlineRegistry.changeStatus(me.getPlayerId(), PlayerStatus.ONLINE);
                             try {
-                                if (players.size() > 2) {
+                                if (players.size() > 1) {
                                     for (PlayerMatch p : players) {
                                         if (!p.getPlayer().getPlayerId().equals(me.getPlayerId())) {
                                             ClientHandler pw = OnlineRegistry.getHandler(p.getPlayer().getPlayerId());
                                             if (pw != null) {
                                                 var m = new JsonObject();
-                                                m.addProperty("type", "LEAVE_GAME_OTHER");
+                                                m.addProperty("type", "EXIT_GAME_OTHER");
                                                 m.addProperty("match", match.toString());
                                                 pw.send(m);
                                             }
                                         }
                                     }
-                                } else {
+                                } else if(players.size() == 1){
                                     PlayerMatch pm = players.get(0);
                                     pm.setStatus("TOP1");
                                     PlayerMatchDAO pmDAO = new PlayerMatchDAO();
@@ -649,12 +652,14 @@ public class ClientHandler implements Runnable {
                                     }
                                     MatchOn.removeMatch(matchId);
                                 }
+                                else{
+                                    MatchOn.removeMatch(matchId);
+                                }
                                 var v = new JsonObject();
-                                v.addProperty("type", "LEAVE_GAME_ME");
+                                v.addProperty("type", "EXIT_GAME_ME");
                                 send(v);
-
                             } catch (Exception ex) {
-                                System.out.println("Error sending LEAVE_GAME messages: " + ex.getMessage());
+                                System.out.println("Error sending EXIT_GAME messages: " + ex.getMessage());
                                 ex.printStackTrace();
                             }
                         }

@@ -63,7 +63,7 @@ public class FindUserFrame extends JFrame {
 
                     if (status.equalsIgnoreCase("ONLINE")) {
                         JsonObject m = new JsonObject();
-                        m.addProperty("type", "INVITE_MATCH_MULTI_USER");
+                        m.addProperty("type", "INVITE_MULTIPLE_USERS_TO_MATCH");
                         m.addProperty("toPlayerId", id);
                         m.addProperty("matchId", match.getMatchId());
                         try {

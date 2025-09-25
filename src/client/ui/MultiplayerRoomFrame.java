@@ -153,7 +153,7 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
                 return;
             } else {
                 var m = new JsonObject();
-                m.addProperty("type", "START_GAME_MULTI");
+                m.addProperty("type", "START_GAME_MULTIPLE");
                 m.addProperty("matchId", match.getMatchId());
                 try {
                     tcp.send(JsonUtil.toJson(m));
@@ -166,13 +166,14 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
                 }
             }
         } else if (source == exitButton) {
+            System.out.println("Exiting room...");
             exitRoom();
         }
     }
 
     private void exitRoom() {
         var m = new JsonObject();
-        m.addProperty("type", "EXIT_ROOM");
+        m.addProperty("type", "EXIT_ROOM_MULTIPLE");
         m.addProperty("matchId", match.getMatchId());
         try {
             tcp.send(JsonUtil.toJson(m));
@@ -190,11 +191,11 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
             var msg = JsonUtil.fromJson(line, JsonObject.class);
             String type = msg.get("type").getAsString();
             switch (type) {
-                case "EXIT_ROOM_ME" -> {
+                case "EXIT_ROOM_MULTIPLE_ME" -> {
                     mainFrame.reopen();
                     dispose();
                 }
-                case "EXIT_ROOM_HOST" -> {
+                case "EXIT_ROOM_MULTIPLE_HOST" -> {
                     JOptionPane.showMessageDialog(this,
                             "Chủ phòng đã thoát. Phòng sẽ bị đóng.",
                             "Phòng đã đóng",
@@ -202,21 +203,21 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
                     mainFrame.reopen();
                     dispose();
                 }
-                case "EXIT_ROOM_GUEST" -> {
+                case "EXIT_ROOM_MULTIPLE_GUEST" -> {
                     HandelMatchMulti updatedMatch = HandelMatchMulti.fromJson(msg.get("match").getAsString());
                     match = updatedMatch;
                     updatePlayerList(new ArrayList<>(updatedMatch.getPlayerMatches()));
                 }
-                case "INVITE_ACCEPT_MATCH_MULTI" -> {
+                case "ACCEPT_MULTIPLE_USERS_MATCH_INVITE" -> {
                     HandelMatchMulti updatedMatch = HandelMatchMulti.fromJson(msg.get("match").getAsString());
                     this.match = updatedMatch;
                     updatePlayerList(new ArrayList<>(updatedMatch.getPlayerMatches()));
                 }
-                case "INVITE_DECLINED" -> {
+                case "DECLINE_MULTIPLE_USERS_MATCH_INVITED" -> {
                     Player fromPlayer = Player.fromJson(msg.get("fromPlayer").getAsString());
                     showInviteDecline(fromPlayer);
                 }
-                case "GAME_MULTI_STARTED" -> {
+                case "GAME_MULTIPLE_STARTED" -> {
                     try {
                         HandelMatchMulti match = HandelMatchMulti.fromJson(msg.get("match").getAsString());
                         var game = new GameWindowMultiplayerFrame(match, tcp, mainFrame, me);

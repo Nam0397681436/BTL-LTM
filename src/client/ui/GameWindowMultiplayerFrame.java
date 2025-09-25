@@ -176,7 +176,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
                 if (confirm == JOptionPane.YES_OPTION) {
                     try {
                         var m = new JsonObject();
-                        m.addProperty("type", "LEAVE_GAME");
+                        m.addProperty("type", "EXIT_GAME");
                         m.addProperty("matchId", match.getMatchId());
                         tcp.send(JsonUtil.toJson(m));
                     } catch (IOException ex) {
@@ -219,13 +219,13 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
                         startMemoryGame(updatedMatch);
                     }
 
-                    case "LEAVE_GAME_ME" -> {
+                    case "EXIT_GAME_ME" -> {
                         System.out.println("Player chose to leave the game.");
                         mainFrame.reopen();
                         dispose();
                     }
 
-                    case "LEAVE_GAME_OTHER" -> {
+                    case "EXIT_GAME_OTHER" -> {
                         HandelMatchMulti updatedMatch = HandelMatchMulti.fromJson(msg.get("match").getAsString());
                         match = updatedMatch;
                         updateRanking(updatedMatch);
@@ -266,7 +266,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
                 if (confirm == JOptionPane.YES_OPTION) {
                     try {
                         var m = new JsonObject();
-                        m.addProperty("type", "LEAVE_GAME");
+                        m.addProperty("type", "EXIT_GAME");
                         m.addProperty("matchId", match.getMatchId());
                         tcp.send(JsonUtil.toJson(m));
                     } catch (IOException ex) {
@@ -338,7 +338,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
         userInput = userInput.isEmpty() ? "" : userInput;
         try {
             var m = new JsonObject();
-            m.addProperty("type", "SUBMIT_ANSWER");
+            m.addProperty("type", "SUBMIT_MULTIPLE_ANSWERS");
             m.addProperty("matchId", match.getMatchId());
             m.addProperty("round", round);
             m.addProperty("answer", userInput);
@@ -415,7 +415,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
             if (timeLeft[0] <= 0) {
                 ((Timer) e.getSource()).stop();
                 dialog.dispose();
-                if (round < 24) {
+                if (round < 5) {
                     try {
                         var m = new JsonObject();
                         m.addProperty("type", "REQUEST_NEXT_ROUND");

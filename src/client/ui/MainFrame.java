@@ -606,16 +606,16 @@ public class MainFrame extends JFrame {
                     var game = new MultiplayerRoomFrame(match, me, tcp, this);
                     game.setVisible(true);
                 }
-                case "INVITE_MATCH_MULTI_USER" -> {
+                case "INVITE_MULTIPLE_USERS_TO_MATCH" -> {
                     Player fromPlayer = Player.fromJson(msg.get("fromPlayer").getAsString());
                     int matchId = msg.get("matchId").getAsInt();
                     System.out.println(fromPlayer);
                     int option = JOptionPane.showConfirmDialog(this,
-                            fromPlayer.getNickname() + " mời bạn chơi game!!. Ban có đồng ý không?",
+                            "'" + fromPlayer.getNickname() + "' mời bạn chơi game!! Bạn có đồng ý không?",
                             "Lời mời thách đấu", JOptionPane.YES_NO_OPTION);
                     if (option == JOptionPane.YES_OPTION) {
                         var m = new JsonObject();
-                        m.addProperty("type", "INVITE_ACCEPT_MATCH_MULTI");
+                        m.addProperty("type", "ACCEPT_MULTIPLE_USERS_MATCH_INVITE");
                         m.addProperty("matchId", matchId);
                         try {
                             tcp.send(JsonUtil.toJson(m));
@@ -624,7 +624,7 @@ public class MainFrame extends JFrame {
                         }
                     } else {
                         var m = new JsonObject();
-                        m.addProperty("type", "INVITE_DECLINE");
+                        m.addProperty("type", "DECLINE_MULTIPLE_USERS_MATCH_INVITE");
                         m.addProperty("toPlayerId", fromPlayer.getPlayerId());
                         try {
                             tcp.send(JsonUtil.toJson(m));
@@ -633,7 +633,7 @@ public class MainFrame extends JFrame {
                         }
                     }
                 }
-                case "INVITE_ACCEPT_MATCH_MULTI" -> {
+                case "ACCEPT_MULTIPLE_USERS_MATCH_INVITE" -> {
                     HandelMatchMulti match = HandelMatchMulti.fromJson(msg.get("match").getAsString());
                     Player me = Player.fromJson(msg.get("me").getAsString());
                     this.setVisible(false);

@@ -29,9 +29,11 @@ public class HandelMatchMulti extends Match {
         List<PlayerMatch> sorted = new ArrayList<>(playerMatchs);
         sorted.sort((a, b) -> Integer.compare(b.getScore(), a.getScore()));
         int rank = 1;
-        for (PlayerMatch p : sorted) {
-            p.setStatus("TOP" + rank);
-            rank++;
+        for (int i = 0; i < sorted.size(); i++) {
+            if (i > 0 && sorted.get(i).getScore() < sorted.get(i - 1).getScore()) {
+                rank = i + 1;
+            }
+            sorted.get(i).setStatus("TOP" + rank);
         }
 
         return roundResults;
