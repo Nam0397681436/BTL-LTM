@@ -494,7 +494,7 @@ public class MainFrame extends JFrame {
                                             : o.get("startTime").getAsString();
                                     String end = o.get("endTime").isJsonNull() ? "" : o.get("endTime").getAsString();
                                     int score = o.get("score").getAsInt();
-                                    String result = o.get("isWinner").getAsBoolean() ? "WIN" : "LOSE";
+                                    String result = o.get("status").getAsString();
                                     table.add(new Object[] { matchId, mode, start, end, score, result });
                                 }
                                 try {
