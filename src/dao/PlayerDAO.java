@@ -90,7 +90,7 @@ public class PlayerDAO {
                     row.put("startTime", rs.getTimestamp("start_time"));
                     row.put("endTime",   rs.getTimestamp("end_time"));
                     row.put("score",     rs.getInt("score"));
-                    row.put("isWinner",  rs.getString("result"));
+                    row.put("status",  rs.getString("result"));
                     out.add(row);
                 }
             }
