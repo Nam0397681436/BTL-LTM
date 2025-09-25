@@ -43,7 +43,7 @@ public class HistoryFrame extends JDialog {
             int score     = o.get("score").getAsInt();
             String result = o.has("result")
                     ? o.get("result").getAsString()
-                    : (o.get("isWinner").getAsBoolean()? "WIN" : "LOSE");
+                    : o.get("status").getAsString();
             model.addRow(new Object[]{ matchId, mode, start, end, score, result });
         }
     }
