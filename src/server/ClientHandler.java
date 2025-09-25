@@ -214,9 +214,9 @@ public class ClientHandler implements Runnable {
                         o.addProperty("endTime", String.valueOf(r.get("endTime")));
                         o.addProperty("score", ((Number) r.get("score")).intValue());
 
-                        String result = String.valueOf(r.get("isWinner"));
+                        String result = String.valueOf(r.get("status"));
                         o.addProperty("result", result);
-                        o.addProperty("isWinner", "WIN".equalsIgnoreCase(result));
+                        o.addProperty("status", result);
 
                         arr.add(o);
                     }
