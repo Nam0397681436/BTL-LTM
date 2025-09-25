@@ -640,6 +640,8 @@ public class ClientHandler implements Runnable {
                                 } else if(players.size() == 1){
                                     PlayerMatch pm = players.get(0);
                                     pm.setStatus("TOP1");
+                                    MatchDAO matchDAO = new MatchDAO();
+                                    matchDAO.endMatch(match);
                                     PlayerMatchDAO pmDAO = new PlayerMatchDAO();
                                     pmDAO.create(pm, match.getMatchId());
                                     OnlineRegistry.changeStatus(me.getPlayerId(), PlayerStatus.ONLINE);

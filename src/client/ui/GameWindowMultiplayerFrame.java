@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class GameWindowMultiplayerFrame extends JFrame implements ActionListener {
+    private int totalRounds = 24;
     private Player me;
     private TcpClient tcp;
     private MainFrame mainFrame;
@@ -415,7 +416,7 @@ public class GameWindowMultiplayerFrame extends JFrame implements ActionListener
             if (timeLeft[0] <= 0) {
                 ((Timer) e.getSource()).stop();
                 dialog.dispose();
-                if (round < 5) {
+                if (round < totalRounds) {
                     try {
                         var m = new JsonObject();
                         m.addProperty("type", "REQUEST_NEXT_ROUND");
