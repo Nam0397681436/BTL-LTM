@@ -50,12 +50,27 @@ public class OnlineRegistry {
         SESSIONS.computeIfPresent(playerId, (k, v) -> (v == h) ? null : v);
     }
 
+    public static ClientHandler sessionOf(String playerId) {
+        return SESSIONS.get(playerId);
+    }
+
     /** Lấy ClientHandler của một player cụ thể */
     public static ClientHandler getHandler(String playerId) {
         System.out.println("Getting handler for playerId: " + playerId);
         if (playerId == null)
             return null;
         return SESSIONS.get(playerId);
+    }
+
+    public static void sendToPlayer(String playerId, JsonObject message) {
+        ClientHandler handler = SESSIONS.get(playerId);
+        if (handler != null) {
+            try {
+                handler.send(message);
+            } catch (Exception e) {
+                System.err.println("Error sending message to player " + playerId + ": " + e.getMessage());
+            }
+        }
     }
 
     /* ================== Online set ================== */
