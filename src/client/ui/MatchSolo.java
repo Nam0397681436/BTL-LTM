@@ -28,6 +28,7 @@ public class MatchSolo extends JFrame {
     private int currentRound;
     private String[] columnsNamePoint={"Tên","Điểm"};
     private boolean checkSendAnswer=false;
+    private Timer timerTimeout;
     public MatchSolo(TcpClient tcp, String myPlayerId, String myNickname, String opponentId, String opponentName) {
         this.tcp = tcp;
         this.myPlayerId = myPlayerId;
@@ -66,6 +67,19 @@ public class MatchSolo extends JFrame {
             switch (type) {
                 case "QUESTION":
                     System.out.println("Nhận được câu hỏi: " + msg.toString());
+                    // Dừng timer cũ trước khi bắt đầu round mới
+                    if (timerTimeout != null) {
+                        timerTimeout.stop();
+                        System.out.println("Đã dừng timer cũ cho round mới");
+                    }
+                    // Clear các label thời gian
+                    timeLabel.setText("");
+                    answerTimeLabel.setText("");
+                    questionLabel.setText("");
+                    
+                    // Reset trạng thái cho round mới
+                    checkSendAnswer = false;
+                    
                     this.question = msg.get("question").getAsString();
                     this.currentRound = msg.get("round").getAsInt();
                     this.timeShowQuestion=msg.get("time").getAsInt();
@@ -88,11 +102,12 @@ public class MatchSolo extends JFrame {
                     dataPoint[0][1] = point1;
                     dataPoint[1][0] = nickname2.equals(myNickname) ? "You" : nickname2;
                     dataPoint[1][1] = point2;
-                    
+                    timerTimeout.stop();
                     // Cập nhật bảng điểm trên UI
                     SwingUtilities.invokeLater(() -> {
                         pointTable.repaint();
                     });
+
                     break;
                 default:
                     break;
@@ -106,7 +121,7 @@ public class MatchSolo extends JFrame {
     private void showCountdownBeforeQuestion(String round, String question) {
         SwingUtilities.invokeLater(() -> {
             roundLabel.setText("Round " + round);
-            checkSendAnswer = false; // Reset trạng thái gửi câu trả lời cho round mới
+            // checkSendAnswer đã được reset ở trên khi nhận QUESTION message
             
             // Sử dụng lại hàm setTimeDown để đếm ngược 4 giây
             setTimeDownWithText(timeLabel, 4, () -> {
@@ -115,7 +130,6 @@ public class MatchSolo extends JFrame {
                     questionLabel.setText(question);
                     System.out.println("Hiển thị câu hỏi: " + question);
                 });
-                
                 // Bắt đầu timer cho câu hỏi (thời gian để trả lời)
                 setTimeDown(timeLabel, timeShowQuestion, () -> {
                     timeLabel.setText("");
@@ -321,7 +335,7 @@ public class MatchSolo extends JFrame {
                 answerMsg.addProperty("round", currentRound);
                 checkSendAnswer = true; 
                 sendMessage(answerMsg);                                                  
-            }
+            }           
             answerField.setText("");
             allowAnswer(false);                
         });
@@ -370,7 +384,7 @@ public class MatchSolo extends JFrame {
     }
     public void setTimeDown(JLabel timeLabel,int second, Runnable onFinish,String type){
         final int [] timeDown={second};
-        Timer t = new Timer(1000,e ->{
+        timerTimeout = new Timer(1000,e ->{
              timeDown[0]=Math.max(0,timeDown[0]-1);
              timeLabel.setText(String.valueOf(timeDown[0]));
              if(timeDown[0]==0){
@@ -385,8 +399,8 @@ public class MatchSolo extends JFrame {
                 }          
              }
         });
-        t.setInitialDelay(0);
-        t.start();
+        timerTimeout.setInitialDelay(0);
+        timerTimeout.start();
     }
     public class ThoatTranDauListener implements ActionListener{
         @Override

@@ -27,8 +27,10 @@ public class HandelMatchSolo extends Match {
             if (this.getPlayerMatches().get(i).getPlayerId().equals(playerId)) {
                 if (i == 0) {
                     player1Answered = true;
+                    System.out.println("Player 1 đã trả lời: " + player1Answered);
                 } else if (i == 1) {
                     player2Answered = true;
+                    System.out.println("Player 2 đã trả lời: " + player2Answered);
                 }
                 found = true;
                 break;
@@ -117,6 +119,7 @@ public class HandelMatchSolo extends Match {
     
     // Kiểm tra xem cả hai players đã trả lời chưa
     public boolean bothPlayersAnswered() {
+        System.out.println("Cả hai players đã trả lời: " + player1Answered + " và " + player2Answered);
         boolean result = player1Answered && player2Answered;
         return result;
     }

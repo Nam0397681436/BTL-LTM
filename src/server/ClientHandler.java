@@ -324,10 +324,14 @@ public class ClientHandler implements Runnable {
                     String opponentId=msg.get("opponentId").getAsString();
                     int matchId=msg.get("matchId").getAsInt();
                     // tinh diem tran dau
+                    System.out.println("Nhận được câu trả lời: từ " + playerId);
+                    System.out.println("Câu trả lời: " + msg.get("answer").getAsString());
+
                     var handelMatchSolo=MatchOn.getSoloMatch(matchId);
                     handelMatchSolo.TinhDiemTranDau(msg);                  
                     // Chỉ gửi câu hỏi tiếp theo khi cả hai players đã trả lời
-                    if (handelMatchSolo.bothPlayersAnswered()) {    
+                    if (handelMatchSolo.bothPlayersAnswered()) {  
+                        System.out.println("Cả hai players đã trả lời");
                         JsonObject bangDiem=handelMatchSolo.bangDiemHienTai();         
                         JsonObject jsonQuestion=handelMatchSolo.getQuestionRound();
                         sendToPlayer(playerId,bangDiem);   
@@ -335,6 +339,7 @@ public class ClientHandler implements Runnable {
                         if (jsonQuestion != null) {
                             sendToPlayer(playerId,jsonQuestion);         
                             sendToPlayer(opponentId,jsonQuestion);
+                            //System.out.println("Gửi câu hỏi tiếp theo: " + jsonQuestion.toString());
                         } 
                     }
                 }
