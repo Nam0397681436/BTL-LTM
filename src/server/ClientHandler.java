@@ -251,40 +251,48 @@ public class ClientHandler implements Runnable {
                 }
 
                 /* ---------- THÁCH ĐẤU ---------- (dành cho Năm) */
-                case "INVITE" -> {
-                    String playerInvite = msg.get("PLAYER_INVITE").getAsString();
-                    String targetPlayer = msg.get("PLAYER").getAsString();
+                case "INVITE-SOLO" -> {
+                    // { type, fromId, fromNick, toId }
+                    String fromId   = msg.get("fromId").getAsString();
+                    String fromNick = msg.get("fromNick").getAsString();
+                    String toId     = msg.get("toId").getAsString();
 
-                    // Kiểm tra người gửi có phải là người đang đăng nhập không
-                    if (!playerInvite.equals(me.getPlayerId())) {
-                        send(err("Không thể gửi thách đấu thay người khác"));
+                    ClientHandler toSession = OnlineRegistry.sessionOf(toId);
+                    if (toSession == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("type", "DENIED");
+                        err.addProperty("byNick", "Hệ thống");
+                        err.addProperty("reason", "opponent_offline");
+                        send(err); // báo lại người mời
                         break;
                     }
 
-                    // Kiểm tra đối phương có online không
-                    if (!OnlineRegistry.isOnline(targetPlayer)) {
-                        send(err("Đối phương không online"));
-                        break;
+                    JsonObject forward = new JsonObject();
+                    forward.addProperty("type", "INVITE-SOLO");
+                    forward.addProperty("fromId", fromId);
+                    forward.addProperty("fromNick", fromNick);
+                    toSession.send(forward);
+                }
+
+                /* ---------- DENIED (từ chối / hết giờ) ---------- */
+                case "DENIED" -> {
+                    // { type, toId, byId, byNick, reason }
+                    String toId   = msg.get("toId").getAsString();     // người mời
+                    String byNick = msg.get("byNick").getAsString();
+                    String reason = msg.has("reason") ? msg.get("reason").getAsString() : "denied";
+
+                    ClientHandler toSession = OnlineRegistry.sessionOf(toId);
+                    if (toSession != null) {
+                        JsonObject inform = new JsonObject();
+                        inform.addProperty("type", "DENIED");
+                        inform.addProperty("byNick", byNick);
+                        inform.addProperty("reason", reason);
+                        toSession.send(inform);
                     }
-
-                    // Gửi thách đấu cho đối phương
-                    JsonObject challengeMsg = new JsonObject();
-                    challengeMsg.addProperty("type", "INVITE");
-                    challengeMsg.addProperty("PLAYER_INVITE", playerInvite);
-                    challengeMsg.addProperty("PLAYER", targetPlayer);
-                    challengeMsg.addProperty("inviterName", me.getNickname());
-
-                    sendToPlayer(targetPlayer, challengeMsg);
-
-                    // Thông báo cho người gửi rằng đã gửi thách đấu
-                    JsonObject confirmMsg = new JsonObject();
-                    confirmMsg.addProperty("type", "CHALLENGE_SENT");
-                    confirmMsg.addProperty("targetPlayer", targetPlayer);
-                    send(confirmMsg);
                 }
 
                 /* Bắt đầu trận đấu */
-                case "START-GAME-SOLO" -> {
+                case "START-GAME" -> {
                     /*
                     String p1Id   = msg.get("p1Id").getAsString();
                     String p1Nick = msg.get("p1Nick").getAsString();
@@ -323,7 +331,7 @@ public class ClientHandler implements Runnable {
                     leaveMsg.addProperty("playerId", me.getPlayerId());
                     leaveMsg.addProperty("playerName", me.getNickname());
 
-                    sendToPlayer(opponentId, leaveMsg);
+                    OnlineRegistry.sendToPlayer(opponentId, leaveMsg);
 
                     // Thông báo cho người này rằng đã rời phòng thành công
                     JsonObject confirmMsg = new JsonObject();
@@ -341,7 +349,7 @@ public class ClientHandler implements Runnable {
                     surrenderMsg.addProperty("playerId", me.getPlayerId());
                     surrenderMsg.addProperty("playerName", me.getNickname());
 
-                    sendToPlayer(opponentId, surrenderMsg);
+                    OnlineRegistry.sendToPlayer(opponentId, surrenderMsg);
 
                     // Thông báo cho người này rằng đã đầu hàng
                     JsonObject confirmMsg = new JsonObject();
@@ -730,30 +738,28 @@ public class ClientHandler implements Runnable {
                 default -> send(err("Unknown type: " + type));
             }
         } catch (Exception e) {
+            // Ngoại lệ xảy ra trong logic xử lý (ví dụ: DB hoặc JSON)
             e.printStackTrace();
-            send(err("SERVER_ERROR: " + e.getMessage()));
+            try { // Cố gắng gửi lỗi, nhưng nếu gửi thất bại thì chấp nhận kết nối chết
+                send(err("SERVER_ERROR: " + e.getMessage()));
+            } catch (IOException ignored) {
+                // Nếu không gửi được, kết nối đã chết. Bỏ qua và để luồng run() kết thúc
+            }
         }
-        // CHÚ Ý: không unregister ở đây nữa, đã làm trong finally của run()
     }
 
     /* gửi JSON NDJSON */
-    public synchronized void send(JsonObject o) {
+    public synchronized void send(JsonObject o) throws IOException {
         try {
             out.write(server.JsonUtil.toJson(o));
             out.write("\n");
             out.flush();
         } catch (IOException ignore) {
             ignore.printStackTrace();
+            throw ignore;
         }
     }
 
-    /* Helper method để gửi message cho người chơi cụ thể */
-    private static void sendToPlayer(String playerId, JsonObject message) {
-        ClientHandler handler = OnlineRegistry.getHandler(playerId);
-        if (handler != null) {
-            handler.send(message);
-        }
-    }
 
     private static JsonObject err(String msg) {
         var o = new JsonObject();

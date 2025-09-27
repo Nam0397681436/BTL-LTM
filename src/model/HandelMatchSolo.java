@@ -6,7 +6,7 @@ import java.util.Date;
 import com.google.gson.JsonObject;
 
 import client.JsonUtil;
-
+import server.JsonUtil;
 import java.util.Random;
 
 public class HandelMatchSolo extends Match {

@@ -1,9 +1,8 @@
 package dao;
 
-import model.Player;
-
 import java.sql.*;
 import java.util.*;
+import model.Player;
 
 /**
  * - Sinh player_id 6 chữ số (000001, 000002, ...) trong transaction.

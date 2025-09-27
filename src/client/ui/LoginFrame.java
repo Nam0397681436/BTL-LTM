@@ -10,7 +10,7 @@ import java.awt.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LoginFrame extends JFrame {
-    private final TcpClient tcp;
+    private TcpClient tcp;
 
     // panel login gốc & panel đăng ký nhúng 
     private JPanel loginRoot;
@@ -107,6 +107,20 @@ public class LoginFrame extends JFrame {
             return;
         }
 
+        // Kiểm tra và tái kết nối nếu cần
+        if (tcp == null || !isConnectionAlive()) {
+            if (!ClientApp.connectToServer()) {
+                JOptionPane.showMessageDialog(this,
+                        "Không thể kết nối tới server " +
+                                System.getProperty("HOST", "127.0.0.1") + ":" + Integer.getInteger("PORT", 5555) +
+                                "\nHãy kiểm tra server đã chạy và firewall cho phép kết nối.",
+                        "Lỗi mạng", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            // Cập nhật tcp reference
+            tcp = ClientApp.tcp();
+        }
+
         ClientApp.setMessageHandler(this::handleLine);
 
         var m = new JsonObject();
@@ -117,7 +131,7 @@ public class LoginFrame extends JFrame {
         try {
             setWaiting(true);
             if (timeoutTimer != null) timeoutTimer.stop();
-            timeoutTimer = new Timer(8000, ev -> {
+            timeoutTimer = new Timer(15000, ev -> { // Tăng timeout lên 15 giây
                 setWaiting(false);
                 JOptionPane.showMessageDialog(this, "Server không phản hồi. Vui lòng thử lại.",
                         "Lỗi mạng", JOptionPane.ERROR_MESSAGE);
@@ -129,10 +143,14 @@ public class LoginFrame extends JFrame {
         } catch (Exception ex) {
             setWaiting(false);
             JOptionPane.showMessageDialog(this,
-                    "Không thể kết nối tới server " +
-                            System.getProperty("HOST", "127.0.0.1") + ":" + Integer.getInteger("PORT", 5555),
+                    "Không thể gửi dữ liệu tới server: " + ex.getMessage(),
                     "Lỗi mạng", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /** Kiểm tra kết nối còn sống không */
+    private boolean isConnectionAlive() {
+        return tcp != null && tcp.isConnected();
     }
 
     private void handleLine(String line) {
