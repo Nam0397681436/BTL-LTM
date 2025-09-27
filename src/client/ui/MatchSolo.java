@@ -70,7 +70,6 @@ public class MatchSolo extends JFrame {
 
         // Quay lại MainFrame
         if (mainFrame != null) {
-            // Chuyển message handler về MainFrame
             client.ClientApp.setMessageHandler(mainFrame::handleLine);
             mainFrame.reopen();
         }
@@ -106,36 +105,71 @@ public class MatchSolo extends JFrame {
     public void handleMessage(com.google.gson.JsonObject msg) {
         String type = msg.get("type").getAsString();
         switch (type) {
-            case "LEFT_MATCH" -> {
-                JOptionPane.showMessageDialog(this, 
-                        "Bạn đã rời phòng đấu.", 
-                        "Rời phòng", 
-                        JOptionPane.INFORMATION_MESSAGE);
-                backToMainFrame();
+            case "START-GAME": {
+                // Khởi tạo trận đấu solo
+                String p1Id = msg.get("p1Id").getAsString();
+                String p1Nick = msg.get("p1Nick").getAsString();
+                String p2Id = msg.get("p2Id").getAsString();
+                String p2Nick = msg.get("p2Nick").getAsString();
+                startGame(p1Id, p1Nick, p2Id, p2Nick);
+                break;
             }
-            case "SURRENDERED" -> {
+
+            case "LEFT_MATCH": {
                 JOptionPane.showMessageDialog(this, 
-                        "Bạn đã đầu hàng.", 
-                        "Đầu hàng", 
-                        JOptionPane.INFORMATION_MESSAGE);
+                    "Bạn đã rời phòng đấu.", 
+                    "Rời phòng", 
+                    JOptionPane.INFORMATION_MESSAGE);
                 backToMainFrame();
+                break;
             }
-            case "OPPONENT_LEFT" -> {
+
+            case "SURRENDERED": {
+                JOptionPane.showMessageDialog(this, 
+                    "Bạn đã đầu hàng.", 
+                    "Đầu hàng", 
+                    JOptionPane.INFORMATION_MESSAGE);
+                backToMainFrame();
+                break;
+            }
+
+            case "OPPONENT_LEFT": {
                 String playerName = msg.get("playerName").getAsString();
                 JOptionPane.showMessageDialog(this, 
-                        playerName + " đã rời phòng đấu. Bạn thắng!", 
-                        "Đối phương rời phòng", 
-                        JOptionPane.INFORMATION_MESSAGE);
+                    playerName + " đã rời phòng đấu. Bạn thắng!", 
+                    "Đối phương rời phòng", 
+                    JOptionPane.INFORMATION_MESSAGE);
                 backToMainFrame();
+                break;
             }
-            case "OPPONENT_SURRENDERED" -> {
+
+            case "OPPONENT_SURRENDERED": {
                 String playerName = msg.get("playerName").getAsString();
                 JOptionPane.showMessageDialog(this, 
-                        playerName + " đã đầu hàng. Bạn thắng!", 
-                        "Đối phương đầu hàng", 
-                        JOptionPane.INFORMATION_MESSAGE);
+                    playerName + " đã đầu hàng. Bạn thắng!", 
+                    "Đối phương đầu hàng", 
+                    JOptionPane.INFORMATION_MESSAGE);
                 backToMainFrame();
+                break;
+            }
+
+            default: {
+                // Xử lý nếu có thông điệp không rõ
+                System.out.println("Unknown message type: " + type);
+                break;
             }
         }
+    }
+
+    private void startGame(String p1Id, String p1Nick, String p2Id, String p2Nick) {
+        System.out.println("Starting game between " + p1Nick + " and " + p2Nick);
+        
+        // Mở giao diện phòng thách đấu nếu cần
+        JOptionPane.showMessageDialog(this, 
+            p1Nick + " vs " + p2Nick + " - Trận đấu bắt đầu!", 
+            "Trận đấu bắt đầu", 
+            JOptionPane.INFORMATION_MESSAGE);
+        
+        ;
     }
 }
