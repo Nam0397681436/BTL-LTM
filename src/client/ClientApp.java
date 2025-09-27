@@ -8,6 +8,7 @@ public class ClientApp {
 
     private static TcpClient TCP;
     private static volatile Consumer<String> messageHandler; // handler hiện tại của UI
+    private static Thread rxThread; // Luồng đọc từ server
 
     /** Cho UI (MainFrame...) đăng ký nơi nhận message từ server. */
     public static void setMessageHandler(Consumer<String> handler) {
@@ -19,31 +20,35 @@ public class ClientApp {
         return TCP;
     }
 
-    public static void main(String[] args) {
-        // 1) Kết nối TCP
-        TCP = new client.net.TcpClient();
+    /** Tạo kết nối mới hoặc tái kết nối */
+    public static boolean connectToServer() {
         try {
-            TCP.connect();
-        } catch (Exception e) {
-            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
-                    null,
-                    "Không thể kết nối tới server " +
-                            System.getProperty("HOST", "26.239.82.76") + ":" + Integer.getInteger("PORT", 5555) +
-                            "\nHãy kiểm tra server đã chạy và firewall cho phép kết nối.",
-                    "Lỗi mạng", JOptionPane.ERROR_MESSAGE));
-            return;
-        }
-
-        // 2) Mở UI đăng nhập
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                new client.ui.LoginFrame(TCP).setVisible(true);
+            // Đóng kết nối cũ nếu có
+            if (TCP != null) {
+                TCP.close();
             }
-        });
+            
+            // Tạo kết nối mới
+            TCP = new client.net.TcpClient();
+            TCP.connect();
+            
+            // Khởi động lại luồng đọc nếu cần
+            startReaderThread();
+            
+            return true;
+        } catch (Exception e) {
+            System.err.println("[CONNECT] Failed to connect: " + e.getMessage());
+            return false;
+        }
+    }
 
-        // 3) Luồng đọc nền: nhận NDJSON và chuyển cho UI hiện tại
-        Thread rx = new Thread(() -> {
+    /** Khởi động luồng đọc từ server */
+    private static void startReaderThread() {
+        if (rxThread != null && rxThread.isAlive()) {
+            return; // Luồng đã chạy
+        }
+        
+        rxThread = new Thread(() -> {
             try {
                 String line;
                 while ((line = TCP.readLine()) != null) {
@@ -66,21 +71,43 @@ public class ClientApp {
                 System.out.println("[RX] socket closed: " + e.getMessage());
             } finally {
                 try {
-                    TCP.close();
+                    if (TCP != null) {
+                        TCP.close();
+                    }
                 } catch (Exception ignore) {
                 }
-                // Thông báo nhẹ cho người dùng nếu đang ở MainFrame
-                SwingUtilities.invokeLater(() -> {
-                });
             }
         }, "tcp-reader");
-        rx.setDaemon(true);
-        rx.start();
+        rxThread.setDaemon(true);
+        rxThread.start();
+    }
 
-        // 4) Đóng gói dọn dẹp khi app thoát
+    public static void main(String[] args) {
+        // 1) Kết nối TCP
+        if (!connectToServer()) {
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
+                    null,
+                    "Không thể kết nối tới server " +
+                            System.getProperty("HOST", "127.0.0.1") + ":" + Integer.getInteger("PORT", 5555) +
+                            "\nHãy kiểm tra server đã chạy và firewall cho phép kết nối.",
+                    "Lỗi mạng", JOptionPane.ERROR_MESSAGE));
+            return;
+        }
+
+        // 2) Mở UI đăng nhập
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                new client.ui.LoginFrame(TCP).setVisible(true);
+            }
+        });
+
+        // 3) Đóng gói dọn dẹp khi app thoát
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                TCP.close();
+                if (TCP != null) {
+                    TCP.close();
+                }
             } catch (Exception ignore) {
             }
         }));
