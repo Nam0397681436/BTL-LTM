@@ -133,6 +133,7 @@ public class MatchSolo extends JFrame {
                             timeoutAnswer.addProperty("opponentId", opponentId);
                             timeoutAnswer.addProperty("matchId", matchId);
                             timeoutAnswer.addProperty("round", currentRound);
+                            checkSendAnswer = true; 
                             sendMessage(timeoutAnswer);
                         }
                         allowAnswer(false);

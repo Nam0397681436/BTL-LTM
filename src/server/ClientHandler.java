@@ -323,26 +323,21 @@ public class ClientHandler implements Runnable {
                     String playerId=msg.get("playerId").getAsString();
                     String opponentId=msg.get("opponentId").getAsString();
                     int matchId=msg.get("matchId").getAsInt();
-
-                    System.out.println("Nhận được câu trả lời từ playerId: " + playerId + " và opponentId: " + opponentId + " và matchId: " + matchId);
                     // tinh diem tran dau
                     var handelMatchSolo=MatchOn.getSoloMatch(matchId);
-                    handelMatchSolo.TinhDiemTranDau(msg);
-                    
-                    // gui bang diem cho ca hai nguoi choi
-                    JsonObject bangDiem=handelMatchSolo.bangDiemHienTai();
-                    sendToPlayer(playerId,bangDiem);   
-                    sendToPlayer(opponentId,bangDiem);                   
+                    handelMatchSolo.TinhDiemTranDau(msg);                  
                     // Chỉ gửi câu hỏi tiếp theo khi cả hai players đã trả lời
-                    if (handelMatchSolo.bothPlayersAnswered()) {             
+                    if (handelMatchSolo.bothPlayersAnswered()) {    
+                        JsonObject bangDiem=handelMatchSolo.bangDiemHienTai();         
                         JsonObject jsonQuestion=handelMatchSolo.getQuestionRound();
+                        sendToPlayer(playerId,bangDiem);   
+                        sendToPlayer(opponentId,bangDiem); 
                         if (jsonQuestion != null) {
                             sendToPlayer(playerId,jsonQuestion);         
                             sendToPlayer(opponentId,jsonQuestion);
                         } 
                     }
                 }
-
                 /* ---------- RỜI PHÒNG ĐẤU ---------- */
                 case "LEAVE_MATCH" -> {
                     String opponentId = msg.get("opponentId").getAsString();

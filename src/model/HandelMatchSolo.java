@@ -17,7 +17,7 @@ public class HandelMatchSolo extends Match {
     }
 
     public void TinhDiemTranDau(JsonObject answerJson) {
-        String answer = answerJson.get("answer").getAsString().toLowerCase();
+        String answer = answerJson.get("answer").getAsString().toUpperCase();
         String playerId = answerJson.get("playerId").getAsString();
         int round = answerJson.get("round").getAsInt();
         
@@ -78,17 +78,12 @@ public class HandelMatchSolo extends Match {
         if (!(player1Answered && player2Answered) && roundHienTai > 0) {
             System.out.println("Không thể tạo round mới vì chưa đủ câu trả lời cho round " + roundHienTai);
             return null;
-        }
-        
+        }       
         this.roundHienTai++;
         this.questionRoundHienTai= generateQuestion(getLengthByRound(this.roundHienTai));
-        this.timeHienThiQuestion=generateTimeShowQuestion(this.roundHienTai);
-        
+        this.timeHienThiQuestion=generateTimeShowQuestion(this.roundHienTai);       
         // Reset trạng thái trả lời cho round mới
-        resetAnswerStatus();
-        
-        System.out.println("Tạo round mới: " + this.roundHienTai);
-        
+        resetAnswerStatus();            
         JsonObject questionRound = new JsonObject();
         questionRound.addProperty("type","QUESTION");
         questionRound.addProperty("matchId",this.getMatchId());

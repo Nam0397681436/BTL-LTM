@@ -8,6 +8,7 @@ import model.Player;
 import client.net.TcpClient;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.mysql.cj.xdevapi.Client;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -926,6 +927,7 @@ public class MainFrame extends JFrame {
 
     public void reopen() {
         this.setVisible(true);
+        ClientApp.setMessageHandler(this::handleLine);
         loadPlayers();
     }
 }

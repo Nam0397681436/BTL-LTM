@@ -76,7 +76,8 @@ public class ClientApp {
                     if (TCP != null) {
                         TCP.close();
                     }
-                } catch (Exception ignore) {
+                } 
+                catch (Exception ignore) {
                 }
             }
         }, "tcp-reader");
