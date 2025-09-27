@@ -12,7 +12,7 @@ public class DAO {
         );
     }
     private static String user() { return System.getProperty("DB_USER", "root"); }
-    private static String pass() { return System.getProperty("DB_PASS", ""); }
+    private static String pass() { return System.getProperty("DB_PASS", "Namntn2004@"); }
 
     public static Connection get() throws SQLException {
         return DriverManager.getConnection(url(), user(), pass());

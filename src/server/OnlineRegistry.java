@@ -19,6 +19,9 @@ public class OnlineRegistry {
     public static Collection<Player> getAllPlayers() {
         return ONLINE.values();
     }
+    public static Player getPlayer(String playerId){
+        return ONLINE.get(playerId);
+    }
 
     public static List<ClientHandler> getClients() {
         return new ArrayList<>(SESSIONS.values());

@@ -17,6 +17,8 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import model.HandelMatchSolo;
+import model.Match;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -281,19 +283,34 @@ public class ClientHandler implements Runnable {
                     send(confirmMsg);
                 }
 
-                /* ---------- PHẢN HỒI THÁCH ĐẤU ---------- */
-                case "START_GAME" -> {
-                    String inviterId = msg.get("inviterId").getAsString();
-                    boolean accepted = msg.get("accepted").getAsBoolean();
-
-                    // Gửi phản hồi cho người gửi thách đấu
-                    JsonObject responseMsg = new JsonObject();
-                    responseMsg.addProperty("type", "START_GAME");
-                    responseMsg.addProperty("inviterId", me.getPlayerId()); // ID của người chấp nhận
-                    responseMsg.addProperty("accepted", accepted);
-                    responseMsg.addProperty("opponentName", me.getNickname());
-
-                    sendToPlayer(inviterId, responseMsg);
+                /* Bắt đầu trận đấu */
+                case "START-GAME-SOLO" -> {
+                    /*
+                    String p1Id   = msg.get("p1Id").getAsString();
+                    String p1Nick = msg.get("p1Nick").getAsString();
+                    String p2Id   = msg.get("p2Id").getAsString();
+                    String p2Nick = msg.get("p2Nick").getAsString();
+                    */
+                    var handelMatchSolo=MatchOn.addMatchSolo(msg);
+                    JsonObject jsonSendQuestion=handelMatchSolo.getQuestionRound();
+                    sendToPlayer(msg.get("p1Id").getAsString(),jsonSendQuestion);
+                    sendToPlayer(msg.get("p2Id").getAsString(),jsonSendQuestion);
+                              
+                }
+                case "ANSWER_PLAYER_SOLO"->{
+                    String playerId=msg.get("playerId").getAsString();
+                    String opponentId=msg.get("opponentId").getAsString();
+                    int matchId=msg.get("matchId").getAsInt();
+                    // tinh diem tran dau
+                    var handelMatchSolo=MatchOn.getSoloMatch(matchId);
+                    handelMatchSolo.TinhDiemTranDau(msg);
+                     //gui cau hoi cho player round tieps theo
+                    JsonObject jsonQuestion=handelMatchSolo.getQuestionRound();       
+                    sendToPlayer(playerId,jsonQuestion);
+                    
+                    // gui bang diem cho nguoi choi
+                    JsonObject bangDiem=handelMatchSolo.bangDiemHienTai();
+                    sendToPlayer("playerId",bangDiem);   
                 }
 
                 /* ---------- RỜI PHÒNG ĐẤU ---------- */
