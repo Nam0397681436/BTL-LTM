@@ -24,6 +24,7 @@ public class Match {
     }
 
     public Match() {
+        this.playerMatches = new ArrayList<>();
     }
 
     public Match(int matchId, MatchType type, String creatorId, Date startTime, Date endTime) {
@@ -32,6 +33,7 @@ public class Match {
         this.creatorId = creatorId;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.playerMatches = new ArrayList<>();
     }
 
     public void addPlayerMatch(PlayerMatch playerMatch) {
@@ -115,7 +117,7 @@ public class Match {
                 .findFirst()
                 .orElse(null);
     }
-
+    
     @Override
     public boolean equals(Object o) {
         if (this == o)

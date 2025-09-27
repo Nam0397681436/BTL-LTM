@@ -25,7 +25,7 @@ public class MainFrame extends JFrame {
     private final String myPlayerId;
     private final String nickname;
     private client.ui.HistoryFrame historyFrame;
-    private client.ui.LoginFrame loginFrame;
+    private client.ui.LoginFrame loginFrame; // Lưu instance MatchSolo hiện tại
 
     // Bảng người chơi online (3 cột)
     private final DefaultTableModel playersModel = new DefaultTableModel(
@@ -74,8 +74,6 @@ public class MainFrame extends JFrame {
 
         buildUI();
 
-        // nhận message realtime
-        ClientApp.setMessageHandler(this::handleLine);
         // load ban đầu
         loadPlayers();
     }
@@ -489,25 +487,6 @@ public class MainFrame extends JFrame {
         dialog.setVisible(true);
     }
 
-    private void openMatchSolo(String myId, String myNick, String oppId, String oppNick) {
-        MatchSolo matchSolo = new MatchSolo(tcp, myId, myNick, oppId, oppNick);
-        matchSolo.setMainFrame(this);
-
-        ClientApp.setMessageHandler(line -> {
-            try {
-                var msg = JsonUtil.fromJson(line, JsonObject.class);
-                matchSolo.handleMessage(msg);  // Gửi message đến MatchSolo để xử lý
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-
-        matchSolo.setVisible(true);
-        this.setVisible(false);  
-    }
-
-
-
     private void loadPlayers() {
         var m = new JsonObject();
         m.addProperty("type", "LIST_PLAYERS");
@@ -541,6 +520,7 @@ public class MainFrame extends JFrame {
 
     /* ================= Router nhận message ================= */
     public void handleLine(String line) {
+        System.out.println("MainFrame.handleLine() được gọi với: " + line);
         try {
             var msg = JsonUtil.fromJson(line, JsonObject.class);
             String type = msg.get("type").getAsString();
@@ -735,11 +715,13 @@ public class MainFrame extends JFrame {
                     // xác định đối thủ của mình
                     String oppId   = myPlayerId.equals(p1Id) ? p2Id   : p1Id;
                     String oppNick = myPlayerId.equals(p1Id) ? p2Nick : p1Nick;
-
-                    SwingUtilities.invokeLater(() -> openMatchSolo(myPlayerId, nickname, oppId, oppNick));
+                    MatchSolo currentMatchSolo= new MatchSolo(tcp, myPlayerId, nickname, oppId, oppNick);
+                    ClientApp.setMessageHandler(currentMatchSolo::handleMessage);
+                    currentMatchSolo.setMainFrame(this);
+                    currentMatchSolo.setVisible(true);
+                    setVisible(false);       
+                   
                 }
-
-
                 
                 case "OPPONENT_LEFT" -> {
                     String playerName = msg.get("playerName").getAsString();
@@ -835,8 +817,7 @@ public class MainFrame extends JFrame {
         acceptBtn.addActionListener(e -> {
             dialog.dispose();
             sendChallengeResponse(inviterId, true);
-            // Chuyển sang MatchFrame
-            openMatchFrame(inviterId, inviterName);
+            // openMatchFrame sẽ được gọi từ server response "START-GAME"
         });
 
         rejectBtn.addActionListener(e -> {
@@ -853,10 +834,19 @@ public class MainFrame extends JFrame {
     }
 
     private void sendChallengeResponse(String inviterId, boolean accepted) {
+        if (!accepted) {
+            // Từ chối - gửi DENIED
+            sendDenied(inviterId, "user");
+            return;
+        }
+        
+        // Chấp nhận - gửi START-GAME (giống như showInviteDialogWithTimeout)
         var m = new JsonObject();
-        m.addProperty("type", "START_GAME");
-        m.addProperty("inviterId", inviterId);
-        m.addProperty("accepted", accepted);
+        m.addProperty("type", "START-GAME");
+        m.addProperty("p1Id", inviterId);        // người mời
+        m.addProperty("p1Nick", "Opponent");     // tạm thời, sẽ được server xử lý
+        m.addProperty("p2Id", myPlayerId);       // mình (người nhận)
+        m.addProperty("p2Nick", nickname);
         try {
             tcp.send(JsonUtil.toJson(m));
         } catch (IOException ex) {
@@ -868,14 +858,6 @@ public class MainFrame extends JFrame {
         MatchSolo matchSolo = new MatchSolo(tcp, myPlayerId, nickname, opponentId, opponentName);
         matchSolo.setMainFrame(this);
 
-        ClientApp.setMessageHandler(line -> {
-            try {
-                var msg = JsonUtil.fromJson(line, JsonObject.class);
-                matchSolo.handleMessage(msg);  // Gửi message đến MatchSolo để xử lý
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
 
         matchSolo.setVisible(true);
         this.setVisible(false);  
@@ -943,7 +925,6 @@ public class MainFrame extends JFrame {
     }
 
     public void reopen() {
-        ClientApp.setMessageHandler(this::handleLine);
         this.setVisible(true);
         loadPlayers();
     }

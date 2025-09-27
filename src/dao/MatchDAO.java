@@ -19,7 +19,11 @@ public class MatchDAO extends DAO {
             try (PreparedStatement stmt = con.prepareStatement(sql1, PreparedStatement.RETURN_GENERATED_KEYS)) {
                 // Thêm trận mới
                 stmt.setString(1, match.getType().toString());
-                stmt.setString(2, match.getHost().getPlayerId());
+                if(match.getHost() != null) {
+                    stmt.setString(2, match.getHost().getPlayerId());
+                } else {
+                    stmt.setString(2, null);
+                }
                 stmt.executeUpdate();
                 // Lấy id vừa insert
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
@@ -32,7 +36,6 @@ public class MatchDAO extends DAO {
             e.printStackTrace();
         }
     }
-
     public void deletedMatch(Match match) {
         String sql = "DELETE FROM matches WHERE match_id = ?";
         System.out.println("Deleting match ID: " + match.getMatchId());

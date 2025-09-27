@@ -17,8 +17,6 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import model.HandelMatchSolo;
-import model.Match;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -293,32 +291,56 @@ public class ClientHandler implements Runnable {
 
                 /* Bắt đầu trận đấu */
                 case "START-GAME" -> {
-                    /*
                     String p1Id   = msg.get("p1Id").getAsString();
                     String p1Nick = msg.get("p1Nick").getAsString();
                     String p2Id   = msg.get("p2Id").getAsString();
                     String p2Nick = msg.get("p2Nick").getAsString();
-                    */
+                    // Gửi message START-GAME về client để mở giao diện MatchSolo
+                    JsonObject startGameMsg = new JsonObject();
+                    startGameMsg.addProperty("type", "START-GAME");
+                    startGameMsg.addProperty("p1Id", p1Id);
+                    startGameMsg.addProperty("p1Nick", p1Nick);
+                    startGameMsg.addProperty("p2Id", p2Id);
+                    startGameMsg.addProperty("p2Nick", p2Nick);                
+                    sendToPlayer(p1Id, startGameMsg);
+                    sendToPlayer(p2Id, startGameMsg);
+                   
+                }
+                case "START-GAME-SOLO" ->{
+                    String p1Id   = msg.get("p1Id").getAsString();
+                    String p1Nick = msg.get("p1Nick").getAsString();
+                    String p2Id   = msg.get("p2Id").getAsString();
+                    String p2Nick = msg.get("p2Nick").getAsString();
+                    
                     var handelMatchSolo=MatchOn.addMatchSolo(msg);
+                     // Gửi câu hỏi đầu tiên
                     JsonObject jsonSendQuestion=handelMatchSolo.getQuestionRound();
-                    sendToPlayer(msg.get("p1Id").getAsString(),jsonSendQuestion);
-                    sendToPlayer(msg.get("p2Id").getAsString(),jsonSendQuestion);
-                              
+                    //System.out.println("Server gửi câu hỏi: " + jsonSendQuestion.toString());
+                    sendToPlayer(p1Id,jsonSendQuestion);
+                    sendToPlayer(p2Id,jsonSendQuestion);                   
                 }
                 case "ANSWER_PLAYER_SOLO"->{
                     String playerId=msg.get("playerId").getAsString();
                     String opponentId=msg.get("opponentId").getAsString();
                     int matchId=msg.get("matchId").getAsInt();
+
+                    System.out.println("Nhận được câu trả lời từ playerId: " + playerId + " và opponentId: " + opponentId + " và matchId: " + matchId);
                     // tinh diem tran dau
                     var handelMatchSolo=MatchOn.getSoloMatch(matchId);
                     handelMatchSolo.TinhDiemTranDau(msg);
-                     //gui cau hoi cho player round tieps theo
-                    JsonObject jsonQuestion=handelMatchSolo.getQuestionRound();       
-                    sendToPlayer(playerId,jsonQuestion);
                     
-                    // gui bang diem cho nguoi choi
+                    // gui bang diem cho ca hai nguoi choi
                     JsonObject bangDiem=handelMatchSolo.bangDiemHienTai();
-                    sendToPlayer("playerId",bangDiem);   
+                    sendToPlayer(playerId,bangDiem);   
+                    sendToPlayer(opponentId,bangDiem);                   
+                    // Chỉ gửi câu hỏi tiếp theo khi cả hai players đã trả lời
+                    if (handelMatchSolo.bothPlayersAnswered()) {             
+                        JsonObject jsonQuestion=handelMatchSolo.getQuestionRound();
+                        if (jsonQuestion != null) {
+                            sendToPlayer(playerId,jsonQuestion);         
+                            sendToPlayer(opponentId,jsonQuestion);
+                        } 
+                    }
                 }
 
                 /* ---------- RỜI PHÒNG ĐẤU ---------- */
@@ -759,7 +781,13 @@ public class ClientHandler implements Runnable {
             throw ignore;
         }
     }
-
+    /* Helper method để gửi message cho người chơi cụ thể */
+    private static void sendToPlayer(String playerId, JsonObject message) throws IOException{
+        ClientHandler handler = OnlineRegistry.getHandler(playerId);
+        if (handler != null) {
+            handler.send(message);
+        }
+    }
 
     private static JsonObject err(String msg) {
         var o = new JsonObject();

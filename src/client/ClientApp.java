@@ -55,11 +55,13 @@ public class ClientApp {
                     // Đẩy về UI thread để thao tác Swing an toàn
                     final String msg = line;
                     Consumer<String> h = messageHandler;
+                    System.out.println("ClientApp nhận message: " + msg + ", có handler: " + (h != null));
                     if (h != null) {
                         SwingUtilities.invokeLater(() -> {
                             try {
                                 h.accept(msg);
                             } catch (Exception ignore) {
+                                System.out.println("Lỗi trong message handler: " + ignore.getMessage());
                             }
                         });
                     } else {

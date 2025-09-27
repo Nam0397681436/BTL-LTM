@@ -26,13 +26,15 @@ public class MatchOn {
         //tao du lieu trong bang PlayerMatch 
         PlayerMatch playerMatch1 = new PlayerMatch();
         playerMatch1.setPlayer(OnlineRegistry.getPlayer(jsonObject.get("p1Id").getAsString()));
-        PlayerMatchDAO playerMatchDAO= new PlayerMatchDAO();
-        playerMatchDAO.create(playerMatch1, match.getMatchId());
+        playerMatch1.setPlayerId(jsonObject.get("p1Id").getAsString()); // Set playerId
+       // PlayerMatchDAO playerMatchDAO= new PlayerMatchDAO();
+        //playerMatchDAO.create(playerMatch1, match.getMatchId());
         match.addPlayerMatch(playerMatch1);
 
         PlayerMatch playerMatch2 = new PlayerMatch();
         playerMatch2.setPlayer(OnlineRegistry.getPlayer(jsonObject.get("p2Id").getAsString()));
-        playerMatchDAO.create(playerMatch2, match.getMatchId());
+        playerMatch2.setPlayerId(jsonObject.get("p2Id").getAsString()); // Set playerId
+        //playerMatchDAO.create(playerMatch2, match.getMatchId());
         match.addPlayerMatch(playerMatch2);
 
         // cap nhat trang thai trong tran cho cac client
