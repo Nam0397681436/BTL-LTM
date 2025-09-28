@@ -19,7 +19,6 @@ public class ServerMain {
             e.printStackTrace();
             return;
         }
-
         int port = Integer.getInteger("PORT", 5555);
         try (ServerSocket ss = new ServerSocket(port)) {
             System.out.println("Server started on 0.0.0.0:" + port);

@@ -716,12 +716,11 @@ public class MainFrame extends JFrame {
                     // xác định đối thủ của mình
                     String oppId   = myPlayerId.equals(p1Id) ? p2Id   : p1Id;
                     String oppNick = myPlayerId.equals(p1Id) ? p2Nick : p1Nick;
-                    MatchSolo currentMatchSolo= new MatchSolo(tcp, myPlayerId, nickname, oppId, oppNick);
+                    MatchSolo currentMatchSolo= new MatchSolo(tcp, myPlayerId, nickname, oppId, oppNick,p1Id.equals(myPlayerId));
                     ClientApp.setMessageHandler(currentMatchSolo::handleMessage);
                     currentMatchSolo.setMainFrame(this);
                     currentMatchSolo.setVisible(true);
-                    setVisible(false);       
-                   
+                    setVisible(false);                      
                 }
                 
                 case "OPPONENT_LEFT" -> {
@@ -854,16 +853,14 @@ public class MainFrame extends JFrame {
             ex.printStackTrace();
         }
     }
-
+   /*
     private void openMatchFrame(String opponentId, String opponentName) {
         MatchSolo matchSolo = new MatchSolo(tcp, myPlayerId, nickname, opponentId, opponentName);
         matchSolo.setMainFrame(this);
-
-
         matchSolo.setVisible(true);
         this.setVisible(false);  
     }
-
+        */
 
     /* ===== Renderer/Editor cho nút trong bảng ===== */
 

@@ -36,7 +36,7 @@ public class MatchOn {
         playerMatch2.setPlayerId(jsonObject.get("p2Id").getAsString()); // Set playerId
         //playerMatchDAO.create(playerMatch2, match.getMatchId());
         match.addPlayerMatch(playerMatch2);
-
+        
         // cap nhat trang thai trong tran cho cac client
         OnlineRegistry.updateStatus(OnlineRegistry.getPlayer(jsonObject.get("p1Id").getAsString()),"in_game");
         OnlineRegistry.updateStatus(OnlineRegistry.getPlayer(jsonObject.get("p2Id").getAsString()),"in_game");
@@ -47,7 +47,7 @@ public class MatchOn {
     }
 
     public static void removeMatch(int keyMatch) {
-        matches.remove(keyMatch);
+        matches.remove(keyMatch);    
     }
 
     public static Match getMatch(int keyMatch) {

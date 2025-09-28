@@ -6,6 +6,8 @@ import javax.swing.*;
 import com.google.gson.JsonObject;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 import client.ClientApp;
 import client.JsonUtil;
@@ -21,7 +23,7 @@ public class MatchSolo extends JFrame {
     private Player _player;
     private String answerRound,question,myPlayerId,myNickname,opponentId,opponentName;
     private TcpClient tcp;
-    private int timeShowQuestion;
+    private int timeShowQuestion,timeAnswer;
     private MainFrame mainFrame;
     private String[][] dataPoint;
     private int matchId;
@@ -29,7 +31,7 @@ public class MatchSolo extends JFrame {
     private String[] columnsNamePoint={"Tên","Điểm"};
     private boolean checkSendAnswer=false;
     private Timer timerTimeout;
-    public MatchSolo(TcpClient tcp, String myPlayerId, String myNickname, String opponentId, String opponentName) {
+    public MatchSolo(TcpClient tcp, String myPlayerId, String myNickname, String opponentId, String opponentName, boolean isHost) {
         this.tcp = tcp;
         this.myPlayerId = myPlayerId;
         this.myNickname = myNickname;
@@ -40,33 +42,44 @@ public class MatchSolo extends JFrame {
             {"You","0"},
             {opponentName,"0"}
         };
-        JsonObject startGameMsg= new JsonObject();
-        startGameMsg.addProperty("type","START-GAME-SOLO");
-        startGameMsg.addProperty("p1Id", myPlayerId);
-        startGameMsg.addProperty("p1Nick", myNickname);
-        startGameMsg.addProperty("p2Id", opponentId);
-        startGameMsg.addProperty("p2Nick", opponentName);
-        this.sendMessage(startGameMsg);
+        
+        // người mờ mới gửi START-GAME-SOLO
+        if (isHost) {
+            JsonObject startGameMsg= new JsonObject();
+            startGameMsg.addProperty("type","START-GAME-SOLO");
+            startGameMsg.addProperty("p1Id", myPlayerId);
+            startGameMsg.addProperty("p1Nick", myNickname);
+            startGameMsg.addProperty("p2Id", opponentId);
+            startGameMsg.addProperty("p2Nick", opponentName);
+            this.sendMessage(startGameMsg);
+        }
         
         initUI();
     }
+    
+    public void setMainFrame(MainFrame mainFrame) {
+        this.mainFrame = mainFrame;
+    }
+    
     public void sendMessage(JsonObject msg){
         String result=JsonUtil.toJson(msg);
         try {
             tcp.send(result);
+            System.out.println("Gửi message thành công: " + msg.get("type").getAsString());
         } catch (IOException ex) {
             ex.printStackTrace();
+            System.out.println("Lỗi kết nối khi gửi message: " + ex.getMessage());
         }
     }
             
     public void handleMessage(String result){
         JsonObject obj= client.JsonUtil.fromJson(result,JsonObject.class);
         System.out.println("MatchSolo.handleMessage() được gọi với: " + obj);
-         if (obj instanceof JsonObject msg) {
-            String type = msg.get("type").getAsString();
+         if (obj != null) {
+            String type = obj.get("type").getAsString();
             switch (type) {
                 case "QUESTION":
-                    System.out.println("Nhận được câu hỏi: " + msg.toString());
+                    System.out.println("Nhận được câu hỏi: " + obj.toString());
                     // Dừng timer cũ trước khi bắt đầu round mới
                     if (timerTimeout != null) {
                         timerTimeout.stop();
@@ -80,20 +93,37 @@ public class MatchSolo extends JFrame {
                     // Reset trạng thái cho round mới
                     checkSendAnswer = false;
                     
-                    this.question = msg.get("question").getAsString();
-                    this.currentRound = msg.get("round").getAsInt();
-                    this.timeShowQuestion=msg.get("time").getAsInt();
-                    this.matchId = msg.get("matchId").getAsInt();
+                    this.question = obj.get("question").getAsString();
+                    this.currentRound = obj.get("round").getAsInt();
+                    this.timeShowQuestion=obj.get("time").getAsInt();
+                    this.matchId = obj.get("matchId").getAsInt();
+                    this.timeAnswer=obj.get("timeAnswer").getAsInt()   ;
                     // Hiển thị đếm ngược trước khi hiển thị câu hỏi
                     showCountdownBeforeQuestion(String.valueOf(this.currentRound), question);
                     break;
-                case "BXH":
-                    String answer = msg.get("answer").getAsString();
-                    answerField.setText(answer);
+                case "KETQUA_TRANDAU":
+                    JsonObject player1Score = obj.get("player1").getAsJsonObject();
+                    JsonObject player2Score = obj.get("player2").getAsJsonObject();
+                    String nickname1Score = player1Score.get("Nickname").getAsString();
+                    String nickname2Score = player2Score.get("Nickname").getAsString();
+                    int score1 = player1Score.get("score").getAsInt();
+                    int score2 = player2Score.get("score").getAsInt();   
+                    String status1 = player1Score.get("status").getAsString();
+                    String status2 = player2Score.get("status").getAsString();
+                     // nhay sang giao dien ket qua tran dau
+                    SwingUtilities.invokeLater(() -> {
+                        // Tạo và hiển thị giao diện kết quả
+                        KetQuaMatchSolo ketQuaFrame = new KetQuaMatchSolo(
+                            tcp,nickname1Score, score1, status1,nickname2Score, score2, status2, myNickname
+                        );
+                        ketQuaFrame.setMainFrame(mainFrame);
+                        ketQuaFrame.setVisible(true);
+                        dispose();
+                    });
                     break;
                 case "BANG_DIEM":
-                    JsonObject player1 = msg.get("player1").getAsJsonObject();
-                    JsonObject player2 = msg.get("player2").getAsJsonObject();
+                    JsonObject player1 = obj.get("player1").getAsJsonObject();
+                    JsonObject player2 = obj.get("player2").getAsJsonObject();
                     String nickname1 = player1.get("Nickname").getAsString();
                     String nickname2 = player2.get("Nickname").getAsString();
                     String point1 = player1.get("point").getAsString();
@@ -102,7 +132,9 @@ public class MatchSolo extends JFrame {
                     dataPoint[0][1] = point1;
                     dataPoint[1][0] = nickname2.equals(myNickname) ? "You" : nickname2;
                     dataPoint[1][1] = point2;
-                    timerTimeout.stop();
+                    if (timerTimeout != null) {
+                        timerTimeout.stop();
+                    }
                     // Cập nhật bảng điểm trên UI
                     SwingUtilities.invokeLater(() -> {
                         pointTable.repaint();
@@ -113,9 +145,6 @@ public class MatchSolo extends JFrame {
                     break;
             }
         }
-    }
-    public void setMainFrame(MainFrame mainFrame) {
-        this.mainFrame = mainFrame;
     }
     
     private void showCountdownBeforeQuestion(String round, String question) {
@@ -135,7 +164,7 @@ public class MatchSolo extends JFrame {
                     timeLabel.setText("");
                     // Sau khi hết thời gian hiển thị câu hỏi, bắt đầu timer trả lời
                     allowAnswer(true);
-                    setTimeDown(answerTimeLabel, 6, () -> {
+                    setTimeDown(answerTimeLabel, timeAnswer, () -> {
                         answerTimeLabel.setText("");
                         // Nếu chưa gửi câu trả lời thì tự động gửi
                         if (!checkSendAnswer) {
@@ -181,11 +210,19 @@ public class MatchSolo extends JFrame {
     }
     
     private void initUI() {
-        setTitle("Match Solo");
+        setTitle("Match Solo"+myPlayerId);
         setSize(1024, 640);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         setLocationRelativeTo(null);
         getContentPane().setBackground(new Color(245, 247, 250));
+        
+        // Thêm WindowListener để xử lý việc đóng cửa sổ
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                handleWindowClosing();
+            }
+        });
 
         // Nút Thoát trận ở góc trên cùng bên trái
         this.btnExit = new JButton("Thoát trận");
@@ -402,24 +439,52 @@ public class MatchSolo extends JFrame {
         timerTimeout.setInitialDelay(0);
         timerTimeout.start();
     }
+    
+    private void handleWindowClosing() {
+        int choice = JOptionPane.showOptionDialog(
+            this,
+            "Bạn có chắc chắn muốn đóng cửa sổ không?\nTrận đấu sẽ tiếp tục nếu bạn đóng cửa sổ",
+            "Đóng cửa sổ",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            new Object[]{"Đóng cửa sổ", "Quay lại"},
+            "Quay lại"
+        );
+        
+        if (choice == JOptionPane.YES_OPTION) { 
+            JsonObject leaveMsg = new JsonObject();
+            leaveMsg.addProperty("type", "EXIT_MATCH_SOLO");
+            leaveMsg.addProperty("playerId", opponentId);
+            leaveMsg.addProperty("playerExited", myPlayerId);
+            leaveMsg.addProperty("matchId", matchId);
+            sendMessage(leaveMsg);
+            // Đóng cửa sổ MatchSolo
+            dispose();
+        }
+    }
+    
     public class ThoatTranDauListener implements ActionListener{
         @Override
         public void actionPerformed(ActionEvent e) {
-            // Tạm thời không làm gì cả
-            int choice=JOptionPane.showOptionDialog(
-                 null,
-                 "Bạn có chắc chắn muốn thoát trận không?\n Nếu đồng ý, bạn sẽ thua trận",
-                 "Thoát trận",
-                 JOptionPane.YES_NO_OPTION,
-                 JOptionPane.QUESTION_MESSAGE,
-                 null,
-                 new Object[]{"Thoát trận","Quay lại"},
-                 "Quay lại"
-               );
-            if(choice==JOptionPane.YES_OPTION){
-                //client.send("EXIT_MATCH");
-            }    
-            System.out.println("Nút Thoát trận được nhấn - chưa xử lý");
+            int choice = JOptionPane.showOptionDialog(
+            MatchSolo.this,
+            "Bạn có chắc chắn muốn thoát trận không?\nTrận đấu sẽ tiếp tục nếu bạn thoát trận",
+            "Thoát trận",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            new Object[]{"Thoát trận", "Quay lại"},
+            "Quay lại"
+        );
+            if (choice == JOptionPane.YES_OPTION) {
+                JsonObject exitMsg = new JsonObject();
+                exitMsg.addProperty("type", "LEAVE_MATCH_SOLO");
+                exitMsg.addProperty("playerLeaved", myPlayerId);
+                exitMsg.addProperty("playerId", opponentId);
+                exitMsg.addProperty("matchId", matchId);
+                sendMessage(exitMsg);           
+            }
         }
     }
 }

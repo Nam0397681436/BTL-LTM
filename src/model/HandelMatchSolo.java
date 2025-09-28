@@ -4,38 +4,28 @@ import model.PlayerMatch;
 import model.Match;
 import com.google.gson.JsonObject;
 import java.util.Random;
-
+import dao.PlayerMatchDAO;
+import dao.MatchDAO;
 public class HandelMatchSolo extends Match {
     private int roundHienTai = 0;
     private String questionRoundHienTai = "";
     private int timeHienThiQuestion;
+    private int timeAnswer;
     private boolean player1Answered = false;
     private boolean player2Answered = false;
+    private int countAnswer = 0;
+    private int playerRealScoreExited=0;
     
     public HandelMatchSolo(){
         this.setType(MatchType.ONE_VS_ONE);
     }
-
-    public void TinhDiemTranDau(JsonObject answerJson) {
+    
+    public synchronized void TinhDiemTranDau(JsonObject answerJson) {
         String answer = answerJson.get("answer").getAsString().toUpperCase();
         String playerId = answerJson.get("playerId").getAsString();
-        int round = answerJson.get("round").getAsInt();
-        
-        // Track trạng thái trả lời của player - sử dụng cách an toàn hơn
-        boolean found = false;
-        for (int i = 0; i < this.getPlayerMatches().size(); i++) {
-            if (this.getPlayerMatches().get(i).getPlayerId().equals(playerId)) {
-                if (i == 0) {
-                    player1Answered = true;
-                    System.out.println("Player 1 đã trả lời: " + player1Answered);
-                } else if (i == 1) {
-                    player2Answered = true;
-                    System.out.println("Player 2 đã trả lời: " + player2Answered);
-                }
-                found = true;
-                break;
-            }
-        }
+        int round = answerJson.get("round").getAsInt();     
+        this.countAnswer++;
+        System.out.println("MatchID " + this.getMatchId() + " - Round " + round + ": nguoi choi thu " + this.countAnswer + " da tra loi (Player: " + playerId + ")");
         int i = 0;
         int totalPoint = 0;
         while (i < answer.length()) {
@@ -77,63 +67,35 @@ public class HandelMatchSolo extends Match {
 
     public JsonObject getQuestionRound() {
         // Chỉ tạo round mới nếu cả hai players đã trả lời round hiện tại
-        if (!(player1Answered && player2Answered) && roundHienTai > 0) {
-            System.out.println("Không thể tạo round mới vì chưa đủ câu trả lời cho round " + roundHienTai);
+        if (this.countAnswer < 2 && this.roundHienTai > 0) {
+            System.out.println("Không thể tạo round mới vì chưa đủ câu trả lời cho round " + roundHienTai + " (countAnswer=" + countAnswer + ")");
             return null;
         }       
         this.roundHienTai++;
-        this.questionRoundHienTai= generateQuestion(getLengthByRound(this.roundHienTai));
+        if(this.roundHienTai > 24){
+            return this.ketThucTranDau();
+        }
+        this.questionRoundHienTai= generateQuestion(this.getLengthByRound(this.roundHienTai));
         this.timeHienThiQuestion=generateTimeShowQuestion(this.roundHienTai);       
+        this.timeAnswer=generateTimeAnswer(this.roundHienTai);
         // Reset trạng thái trả lời cho round mới
-        resetAnswerStatus();            
+        this.countAnswer = 0;
+        System.out.println("Tạo round mới: " + this.roundHienTai + " với câu hỏi: " + this.questionRoundHienTai);
         JsonObject questionRound = new JsonObject();
         questionRound.addProperty("type","QUESTION");
         questionRound.addProperty("matchId",this.getMatchId());
         questionRound.addProperty("question",questionRoundHienTai);
         questionRound.addProperty("round", this.roundHienTai);
         questionRound.addProperty("time", this.timeHienThiQuestion);
+        questionRound.addProperty("timeAnswer", this.timeAnswer);
         return questionRound;
     }
-    
-    // Phương thức để xử lý timeout khi player không trả lời
-    public JsonObject handleTimeout(String playerId) {
-        JsonObject timeoutAnswer = new JsonObject();
-        timeoutAnswer.addProperty("type", "ANSWER_PLAYER_SOLO");
-        timeoutAnswer.addProperty("answer", "");
-        timeoutAnswer.addProperty("playerId", playerId);
-        timeoutAnswer.addProperty("opponentId", getOpponentId(playerId));
-        timeoutAnswer.addProperty("matchId", this.getMatchId());
-        timeoutAnswer.addProperty("round", this.roundHienTai);
-        return timeoutAnswer;
-    }
-    
-    // Lấy opponent ID
-    private String getOpponentId(String playerId) {
-        for (PlayerMatch pm : this.getPlayerMatches()) {
-            if (!pm.getPlayerId().equals(playerId)) {
-                return pm.getPlayerId();
-            }
-        }
-        return null;
-    }
-    
     // Kiểm tra xem cả hai players đã trả lời chưa
-    public boolean bothPlayersAnswered() {
-        System.out.println("Cả hai players đã trả lời: " + player1Answered + " và " + player2Answered);
-        boolean result = player1Answered && player2Answered;
-        return result;
+    public synchronized boolean bothPlayersAnswered() {
+        return this.countAnswer == 2;
     }
-    
-    // Reset trạng thái trả lời cho round tiếp theo
-    public void resetAnswerStatus() {
-        System.out.println("Reset answer status cho round " + (roundHienTai + 1));
-        player1Answered = false;
-        player2Answered = false;
-    }
-    
-    // Getter cho round hiện tại
     public int getCurrentRound() {
-        return roundHienTai;
+        return this.roundHienTai;
     }
 
     public String generateQuestion(int length) {
@@ -196,17 +158,88 @@ public class HandelMatchSolo extends Match {
             return 10;
         return 4; // mặc định
     }
+    public static int generateTimeAnswer(int round) {
+        if (round == 1)
+            return 6;
+        else if (round == 2)
+            return 6;
+        else if (round >= 3 && round <= 4)
+            return 6;
+        else if (round >= 5 && round <= 7)
+            return 6;
+        else if (round >= 8 && round <= 10)
+            return 7;
+        else if (round >= 11 && round <= 13)
+            return 7;
+        else if (round >= 14 && round <= 15)
+            return 8;
+        else if (round >= 16 && round <= 17)
+            return 9;
+        else if (round >= 18 && round <= 19)
+            return 9;
+        else if (round >= 20 && round <= 21)
+            return 10;
+        else if (round >= 22 && round <= 24)
+            return 11;
+        return 6; // mặc định
+    }
+    public void handelPlayerExited(String playerExited) {
+        for (PlayerMatch playerMatch : this.getPlayerMatches()) {
+            if (playerMatch.getPlayerId().equals(playerExited)) {
+                playerMatch.setStatus("LOSE");
+                this.playerRealScoreExited=playerMatch.getScore();
+                playerMatch.setScore(-3);
+            }
+        }
+    }
+    public JsonObject ketThucTranDau() {
+        this.sapXepBangDiem();
+        // Lưu điểm thực tế trước khi tính kết quả
+        int player1RealScore = this.getPlayerMatches().get(0).getScore();
+        int player2RealScore = this.getPlayerMatches().get(1).getScore();
+        
+        if (player1RealScore > player2RealScore) {
+             this.getPlayerMatches().get(0).setStatus("WIN");
+             this.getPlayerMatches().get(0).setScore(5);
+             this.getPlayerMatches().get(1).setStatus("LOSE");
+             this.getPlayerMatches().get(1).setScore(-3);
+        } 
+        else if (player1RealScore == player2RealScore) {
+            this.getPlayerMatches().get(0).setStatus("DRAW");
+            this.getPlayerMatches().get(0).setScore(0);
+            this.getPlayerMatches().get(1).setScore(0);
+            this.getPlayerMatches().get(1).setStatus("DRAW");
+        }
+        // lưu kết quả trận đấu vào database
+        PlayerMatchDAO playerMatchDAO = new PlayerMatchDAO();
+        for (PlayerMatch playerMatch : this.getPlayerMatches()) {
+            playerMatchDAO.create(playerMatch, this.getMatchId());
+        }
+        // luu thong tin tran dau vao database
+        MatchDAO matchDAO = new MatchDAO();
+        matchDAO.endMatch(this);
 
-    // public void ketThucTranDau() {
-    //     this.match.sapXepBangDiem();
-    //     if (this.match.getPlayerMatches().get(0).getScore() > this.match.getPlayerMatches().get(1).getScore()) {
-    //         this.match.getPlayerMatches().get(0).setWinner(true);
-    //     } else if (this.match.getPlayerMatches().get(0).getScore() < this.match.getPlayerMatches().get(1).getScore()) {
-    //         this.match.getPlayerMatches().get(1).setWinner(true);
-    //     } else {
-    //         this.match.getPlayerMatches().get(0).setWinner(false);
-    //         this.match.getPlayerMatches().get(1).setWinner(false);
-    //     }
-    //     this.match.setEndTime(new Date());
-    // }
+        // gui ket qua trận đấu về client
+        JsonObject ketQuaTranDau = new JsonObject();
+        ketQuaTranDau.addProperty("type", "KETQUA_TRANDAU");
+        ketQuaTranDau.addProperty("matchId", this.getMatchId());
+        ketQuaTranDau.addProperty("round", this.roundHienTai);
+        
+        JsonObject player1 = new JsonObject();
+        player1.addProperty("playerId", this.getPlayerMatches().get(0).getPlayerId());
+        player1.addProperty("Nickname", this.getPlayerMatches().get(0).getPlayer().getNickname());
+        player1.addProperty("score", player1RealScore);
+        player1.addProperty("status", this.getPlayerMatches().get(0).getStatus());
+        
+        JsonObject player2 = new JsonObject();
+        player2.addProperty("playerId", this.getPlayerMatches().get(1).getPlayerId());
+        player2.addProperty("Nickname", this.getPlayerMatches().get(1).getPlayer().getNickname());
+        player2.addProperty("score", player2RealScore < 0 ? playerRealScoreExited : player2RealScore);
+        player2.addProperty("status", this.getPlayerMatches().get(1).getStatus());
+
+        
+        ketQuaTranDau.add("player1", player1);
+        ketQuaTranDau.add("player2", player2);  
+        return ketQuaTranDau;
+    }
 }

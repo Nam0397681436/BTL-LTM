@@ -324,24 +324,66 @@ public class ClientHandler implements Runnable {
                     String opponentId=msg.get("opponentId").getAsString();
                     int matchId=msg.get("matchId").getAsInt();
                     // tinh diem tran dau
-                    System.out.println("Nhận được câu trả lời: từ " + playerId);
+                    System.out.println("Nhận được câu trả lời: từ " + playerId + " cho match " + matchId);
                     System.out.println("Câu trả lời: " + msg.get("answer").getAsString());
-
                     var handelMatchSolo=MatchOn.getSoloMatch(matchId);
-                    handelMatchSolo.TinhDiemTranDau(msg);                  
-                    // Chỉ gửi câu hỏi tiếp theo khi cả hai players đã trả lời
-                    if (handelMatchSolo.bothPlayersAnswered()) {  
-                        System.out.println("Cả hai players đã trả lời");
-                        JsonObject bangDiem=handelMatchSolo.bangDiemHienTai();         
-                        JsonObject jsonQuestion=handelMatchSolo.getQuestionRound();
-                        sendToPlayer(playerId,bangDiem);   
-                        sendToPlayer(opponentId,bangDiem); 
-                        if (jsonQuestion != null) {
-                            sendToPlayer(playerId,jsonQuestion);         
-                            sendToPlayer(opponentId,jsonQuestion);
-                            //System.out.println("Gửi câu hỏi tiếp theo: " + jsonQuestion.toString());
-                        } 
+                    if (handelMatchSolo == null) {
+                        System.out.println("ERROR: Không tìm thấy match với ID: " + matchId);
+                        break;
                     }
+                    
+                    // Synchronize toàn bộ logic xử lý câu trả lời
+                    synchronized(handelMatchSolo) {
+                        handelMatchSolo.TinhDiemTranDau(msg);                  
+                        // Chỉ gửi câu hỏi tiếp theo khi cả hai players đã trả lời
+                        if (handelMatchSolo.bothPlayersAnswered()) {  
+                            System.out.println("Cả hai players đã trả lời");
+                            JsonObject bangDiem=handelMatchSolo.bangDiemHienTai();         
+                            JsonObject jsonQuestion=handelMatchSolo.getQuestionRound();
+                            sendToPlayer(playerId,bangDiem);   
+                            sendToPlayer(opponentId,bangDiem); 
+                            if(jsonQuestion.get("type").getAsString().equals("KETQUA_TRANDAU")){
+                                sendToPlayer(playerId,jsonQuestion);
+                                sendToPlayer(opponentId,jsonQuestion);
+                                break;
+                            }                               
+                            sendToPlayer(playerId,jsonQuestion);         
+                            sendToPlayer(opponentId,jsonQuestion);                           
+                        }
+                    }
+                }
+                case "EXIT_MATCH_SOLO" -> {
+                    String playerExited = msg.get("playerExited").getAsString();
+                    String playerId = msg.get("playerId").getAsString();
+                    int matchId = msg.get("matchId").getAsInt();
+                    var handelMatchSolo=MatchOn.getSoloMatch(matchId);
+                    handelMatchSolo.handelPlayerExited(playerExited);
+                    OnlineRegistry.updateStatus(OnlineRegistry.getPlayer(playerExited),"offline");
+                    OnlineRegistry.updateStatus(OnlineRegistry.getPlayer(playerId),"online");
+                    if (handelMatchSolo == null) {
+                        System.out.println("ERROR: Không tìm thấy match với ID: " + matchId);
+                        break;
+                    }
+                    var ketQuaTranDau=handelMatchSolo.ketThucTranDau();
+                    sendToPlayer(playerId,ketQuaTranDau);  
+                    MatchOn.removeMatch(matchId);                                
+                }
+                case "LEAVE_MATCH_SOLO" -> {
+                    String playerLeaved = msg.get("playerLeaved").getAsString();
+                    String playerId = msg.get("playerId").getAsString();
+                    OnlineRegistry.updateStatus(OnlineRegistry.getPlayer(playerLeaved),"online");
+                    OnlineRegistry.updateStatus(OnlineRegistry.getPlayer(playerId),"online");
+                    int matchId = msg.get("matchId").getAsInt();
+                    var handelMatchSolo=MatchOn.getSoloMatch(matchId);
+                    handelMatchSolo.handelPlayerExited(playerLeaved);
+                    if (handelMatchSolo == null) {
+                        System.out.println("ERROR: Không tìm thấy match với ID: " + matchId);
+                        break;
+                    }
+                    var ketQuaTranDau=handelMatchSolo.ketThucTranDau();
+                    sendToPlayer(playerLeaved,ketQuaTranDau);     
+                    sendToPlayer(playerId,ketQuaTranDau);  
+                    MatchOn.removeMatch(matchId);                                
                 }
                 /* ---------- RỜI PHÒNG ĐẤU ---------- */
                 case "LEAVE_MATCH" -> {
