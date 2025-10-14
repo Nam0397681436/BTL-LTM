@@ -27,6 +27,7 @@ public class MainFrame extends JFrame {
     private final String nickname;
     private client.ui.HistoryFrame historyFrame;
     private client.ui.LoginFrame loginFrame; // Lưu instance MatchSolo hiện tại
+    private static KetQuaMatchSolo currentKetQuaFrame; // Lưu KetQuaMatchSolo hiện tại
 
     // Bảng người chơi online (3 cột)
     private final DefaultTableModel playersModel = new DefaultTableModel(
@@ -78,8 +79,6 @@ public class MainFrame extends JFrame {
         // load ban đầu
         loadPlayers();
     }
-
-    /* ===================== UI ===================== */
 
     private void buildUI() {
         var btnPlayers = topButton("người chơi online");
@@ -267,8 +266,6 @@ public class MainFrame extends JFrame {
         return wrap;
     }
 
-    /* ================= Buttons & Border helpers ================= */
-
     private JButton softButton(String text, String uiKeyIcon) {
         JButton b = new JButton(text);
         try {
@@ -308,7 +305,6 @@ public class MainFrame extends JFrame {
                 uiFont().deriveFont(Font.BOLD));
     }
 
-    /** Font an toàn (không null) */
     private Font uiFont() {
         Font f = UIManager.getFont("Label.font");
         if (f == null)
@@ -318,7 +314,24 @@ public class MainFrame extends JFrame {
         return f;
     }
 
-    /* ================= Logic gửi/nhận ================= */
+    // QUẢN LÝ KETQUAMATCHSOLO 
+    
+    public static void setCurrentKetQuaFrame(KetQuaMatchSolo frame) {
+        currentKetQuaFrame = frame;
+    }
+    
+    public static void clearCurrentKetQuaFrame() {
+        currentKetQuaFrame = null;
+    }
+    
+    private void closeCurrentKetQuaFrameIfExists() {
+        if (currentKetQuaFrame != null) {
+            currentKetQuaFrame.dispose();
+            currentKetQuaFrame = null;
+        }
+    }
+
+    //Logic gửi/nhận 
 
     private void applySearch() {
         String q = tfQuery.getText().trim();
@@ -348,70 +361,6 @@ public class MainFrame extends JFrame {
             }
         });
     }
-
-    // private void invitePvp(String toUserId, String toName) {
-    //     if (toUserId.equals(myPlayerId)) return;
-
-    //     JsonObject m = new JsonObject();
-    //     m.addProperty("type", "INVITE-SOLO");
-    //     m.addProperty("fromId",  myPlayerId);
-    //     m.addProperty("fromNick", nickname);
-    //     m.addProperty("toId",    toUserId);
-
-    //     try { tcp.send(JsonUtil.toJson(m)); }
-    //     catch (IOException ex) { ex.printStackTrace(); }
-    // }
-    // private void showInviteDialogWithTimeout(String fromId, String fromNick) {
-    //     final JDialog dialog = new JDialog(this, "Lời mời thách đấu", true);
-    //     final JPanel  panel  = new JPanel(new BorderLayout(8,8));
-    //     final JLabel  label  = new JLabel(fromNick + " mời bạn thách đấu (5)");
-    //     label.setBorder(BorderFactory.createEmptyBorder(10,10,0,10));
-
-    //     JButton btnAccept = new JButton("Chấp nhận");
-    //     JButton btnDeny   = new JButton("Từ chối");
-
-    //     JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-    //     btns.add(btnDeny); btns.add(btnAccept);
-    //     panel.add(label, BorderLayout.CENTER);
-    //     panel.add(btns,  BorderLayout.SOUTH);
-    //     dialog.setContentPane(panel);
-    //     dialog.pack();
-    //     dialog.setLocationRelativeTo(this);
-
-    //     // Timer đếm ngược 5s
-    //     // final int[] sec = {5};
-    //     // Timer timer = new Timer(1000, e -> {
-    //     //     sec[0]--;
-    //     //     label.setText(fromNick + " mời bạn thách đấu (" + sec[0] + ")");
-    //     //     if (sec[0] <= 0) {
-    //     //         ((Timer)e.getSource()).stop();
-    //     //         sendDenied(fromId, "timeout");
-    //     //         dialog.dispose();
-    //     //     }
-    //     // });
-    //     // timer.start();
-
-    //     btnAccept.addActionListener(e -> {
-    //         timer.stop();
-    //         // Người nhận gửi START-GAME lên server (server sẽ phát cho cả 2)
-    //         JsonObject m = new JsonObject();
-    //         m.addProperty("type", "START-GAME");
-    //         m.addProperty("p1Id", fromId);        // người mời
-    //         m.addProperty("p1Nick", fromNick);
-    //         m.addProperty("p2Id", myPlayerId);    // mình (người nhận)
-    //         m.addProperty("p2Nick", nickname);
-    //         try { tcp.send(JsonUtil.toJson(m)); } catch (IOException ex) { ex.printStackTrace(); }
-    //         dialog.dispose();
-    //     });
-
-    //     btnDeny.addActionListener(e -> {
-    //         timer.stop();
-    //         sendDenied(fromId, "user");
-    //         dialog.dispose();
-    //     });
-
-    //     dialog.setVisible(true);
-    // }
 
     private void sendDenied(String challengerId, String reason) {
         JsonObject m = new JsonObject();
@@ -519,7 +468,7 @@ public class MainFrame extends JFrame {
         }
     }
 
-    /* ================= Router nhận message ================= */
+    //Router nhận message 
     public void handleLine(String line) {
         System.out.println("MainFrame.handleLine() được gọi với: " + line);
         try {
@@ -583,12 +532,12 @@ public class MainFrame extends JFrame {
 
                     SwingUtilities.invokeLater(() -> {
                         try {
-                            // 1) Tạo instance HistoryFrame đúng constructor
+                    
                             if (historyFrame == null) {
                                 java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(this);
                                 HistoryFrame hf;
                                 try {
-                                    // Ưu tiên ctor (Frame, boolean) nếu có (thường là JDialog sinh từ NetBeans)
+                               
                                     java.lang.reflect.Constructor<HistoryFrame> c = HistoryFrame.class
                                             .getConstructor(java.awt.Frame.class, boolean.class);
                                     java.awt.Frame f = (owner instanceof java.awt.Frame) ? (java.awt.Frame) owner
@@ -601,15 +550,12 @@ public class MainFrame extends JFrame {
                                 historyFrame = hf;
                                 historyFrame.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
                             }
-
-                            // 2) Nạp dữ liệu: gọi đúng hàm mà HistoryFrame của bạn đang có
-                            // Nếu HistoryFrame có public void load(JsonArray rows)
+      
                             try {
                                 var m = HistoryFrame.class.getMethod("load", com.google.gson.JsonArray.class);
                                 m.invoke(historyFrame, rows);
                             } catch (NoSuchMethodException noLoad) {
-                                // Fallback: nếu không có load(JsonArray), chuyển về List<Object[]> và gọi
-                                // setData(List)
+
                                 java.util.List<Object[]> table = new java.util.ArrayList<>();
                                 for (int i = 0; i < rows.size(); i++) {
                                     var o = rows.get(i).getAsJsonObject();
@@ -626,7 +572,6 @@ public class MainFrame extends JFrame {
                                     var m2 = HistoryFrame.class.getMethod("setData", java.util.List.class);
                                     m2.invoke(historyFrame, table);
                                 } catch (NoSuchMethodException noSetData) {
-                                    // Fallback cuối: bơm thẳng vào JTable tên tblHistory nếu có
                                     try {
                                         var fld = HistoryFrame.class.getDeclaredField("tblHistory");
                                         fld.setAccessible(true);
@@ -658,17 +603,17 @@ public class MainFrame extends JFrame {
                 }
                 case "LOGOUT_OK" -> {
                     JOptionPane.showMessageDialog(this, "Đã đăng xuất!");
-                    // Tái kết nối trước khi mở LoginFrame
-                    if (ClientApp.connectToServer()) {
-                        LoginFrame lf = new LoginFrame(ClientApp.tcp());
+                    
+                    // Reset message handler trước khi tạo LoginFrame
+                    ClientApp.setMessageHandler(null);
+                    
+                    // Tạo LoginFrame mới với kết nối hiện tại
+                    SwingUtilities.invokeLater(() -> {
+                        LoginFrame lf = new LoginFrame(tcp);
                         lf.setVisible(true);
-                        this.setVisible(false);
-                    } else {
-                        JOptionPane.showMessageDialog(this,
-                                "Không thể tái kết nối tới server. Vui lòng khởi động lại ứng dụng.",
-                                "Lỗi kết nối", JOptionPane.ERROR_MESSAGE);
-                        System.exit(0);
-                    }
+                        // Đóng MainFrame hoàn toàn
+                        this.dispose();
+                    });
                 }
                 case "AUTH_ERR" -> {
                     String reason = msg.has("reason") ? msg.get("reason").getAsString() : "";
@@ -692,19 +637,26 @@ public class MainFrame extends JFrame {
                             this, m, "Đăng nhập thất bại", javax.swing.JOptionPane.ERROR_MESSAGE);
                 }
                 case "INVITE-SOLO" -> {
-                    // gói mời mình từ đối phương
                     String fromId   = msg.get("fromId").getAsString();
                     String fromNick = msg.get("fromNick").getAsString();
+                    
+                    // Đóng KetQuaMatchSolo nếu đang mở để người dùng có thể nhận lời mời
+                    closeCurrentKetQuaFrameIfExists();
+                    
+                    // Đảm bảo MainFrame hiển thị và focus
+                    this.setVisible(true);
+                    this.toFront();
+                    this.requestFocus();
+                    
                     showInviteDialogWithTimeout(fromId, fromNick);
                 }
 
                 case "DENIED" -> {
-                    // đối phương từ chối (hoặc hết giờ)
                     String byNick = msg.get("byNick").getAsString();
                     String reason = msg.has("reason") ? msg.get("reason").getAsString() : "denied";
                     JOptionPane.showMessageDialog(this,
-                            byNick + " đã từ chối (" + reason + ")",
-                            "Thách đấu", JOptionPane.INFORMATION_MESSAGE);
+                        byNick + " đã từ chối (" + reason + ")",
+                        "Thách đấu", JOptionPane.INFORMATION_MESSAGE);
                 }
 
                 case "START-GAME" -> {
@@ -713,15 +665,25 @@ public class MainFrame extends JFrame {
                     String p2Id   = msg.get("p2Id").getAsString();
                     String p2Nick = msg.get("p2Nick").getAsString();
 
-                    // xác định đối thủ của mình
+                    // Xác định đối thủ & quyền host (p1 là người mời)
                     String oppId   = myPlayerId.equals(p1Id) ? p2Id   : p1Id;
                     String oppNick = myPlayerId.equals(p1Id) ? p2Nick : p1Nick;
-                    MatchSolo currentMatchSolo= new MatchSolo(tcp, myPlayerId, nickname, oppId, oppNick,p1Id.equals(myPlayerId));
-                    ClientApp.setMessageHandler(currentMatchSolo::handleMessage);
-                    currentMatchSolo.setMainFrame(this);
-                    currentMatchSolo.setVisible(true);
-                    setVisible(false);                      
+                    boolean isHost = myPlayerId.equals(p1Id);
+
+                    // Sử dụng SwingUtilities.invokeLater để đảm bảo thread-safe
+                    SwingUtilities.invokeLater(() -> {
+                        MatchSolo matchSolo = new MatchSolo(tcp, myPlayerId, nickname, oppId, oppNick, isHost);
+                        // Set MessageHandler trước khi gửi START-GAME-SOLO
+                        ClientApp.setMessageHandler(matchSolo::handleMessage);
+                        matchSolo.setMainFrame(this);
+                        matchSolo.setVisible(true);
+                        this.setVisible(false);
+                        
+                        // Gửi START-GAME-SOLO sau khi đã set up hoàn tất
+                        matchSolo.startAsHostIfNeeded();
+                    });
                 }
+
                 
                 case "OPPONENT_LEFT" -> {
                     String playerName = msg.get("playerName").getAsString();
@@ -777,6 +739,14 @@ public class MainFrame extends JFrame {
                     this.setVisible(false);
                     var game = new MultiplayerRoomFrame(match, me, tcp, this);
                     game.setVisible(true);
+                }
+                
+                case "QUESTION" -> {
+                    // Fallback: Nếu MainFrame nhận QUESTION, có thể do race condition
+                    // Log warning và bỏ qua message này vì MatchSolo sẽ handle
+                    System.err.println("WARNING: MainFrame nhận QUESTION message - có thể do race condition!");
+                    System.err.println("QUESTION message: " + line);
+                    // Không xử lý ở đây, để MatchSolo handle
                 }
             }
         } catch (
@@ -853,17 +823,6 @@ public class MainFrame extends JFrame {
             ex.printStackTrace();
         }
     }
-   /*
-    private void openMatchFrame(String opponentId, String opponentName) {
-        MatchSolo matchSolo = new MatchSolo(tcp, myPlayerId, nickname, opponentId, opponentName);
-        matchSolo.setMainFrame(this);
-        matchSolo.setVisible(true);
-        this.setVisible(false);  
-    }
-        */
-
-    /* ===== Renderer/Editor cho nút trong bảng ===== */
-
     private static class ButtonRenderer extends JButton implements TableCellRenderer {
         ButtonRenderer() {
             setOpaque(true);

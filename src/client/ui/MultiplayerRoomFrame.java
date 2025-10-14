@@ -32,12 +32,6 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
     private FindUserFrame findUserFrame;
 
     public MultiplayerRoomFrame(HandelMatchMulti match, Player me, TcpClient tcp, MainFrame mainFrame) {
-        // Apply FlatLaf
-        // try {
-        //     UIManager.setLookAndFeel(new com.formdev.FlatLaf.FlatIntelliJLaf());
-        // } catch (Exception e) {
-        //     System.err.println("Không thể khởi tạo FlatLaf");
-        // }
 
         ClientApp.setMessageHandler(this::handleLine);
         this.match = match;
@@ -51,16 +45,14 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        // ===== Main Panel =====
         JPanel mainPanel = new JPanel(new BorderLayout(15, 15));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        // ===== Title =====
+
         JLabel title = new JLabel("Phòng chờ", SwingConstants.CENTER);
         title.setFont(new Font("Segoe UI", Font.BOLD, 22));
         mainPanel.add(title, BorderLayout.NORTH);
 
-        // ===== Player Table =====
         String[] columnNames = { "STT", "Người chơi" };
         tableModel = new DefaultTableModel(columnNames, 0);
 
@@ -93,7 +85,6 @@ public class MultiplayerRoomFrame extends JFrame implements ActionListener {
         scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200), 1));
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // ===== Buttons =====
         JPanel sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
         sidePanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));

@@ -29,7 +29,6 @@ public class RegisterFrame extends JFrame {
         ClientApp.setMessageHandler(this::handleLine);
     }
 
-    /* ==================== UI mới cho màn Đăng ký ==================== */
     private void render() {
         final int LABEL_W = 110;
         final int FIELD_W = 220;
@@ -152,7 +151,6 @@ public class RegisterFrame extends JFrame {
         } catch (Exception ignore) {}
     }
 
-    /* =================== Panel đăng ký nhúng  =================== */
     public static JPanel createEmbedded(
             TcpClient tcp,
             java.util.function.BiConsumer<String,String> onSuccess,

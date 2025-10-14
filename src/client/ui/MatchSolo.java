@@ -8,6 +8,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 import client.ClientApp;
 import client.JsonUtil;
@@ -26,7 +28,7 @@ public class MatchSolo extends JFrame {
     private int timeShowQuestion,timeAnswer;
     private MainFrame mainFrame;
     private String[][] dataPoint;
-    private int matchId;
+    private int matchId = -1;
     private int currentRound;
     private String[] columnsNamePoint={"Tên","Điểm"};
     private boolean checkSendAnswer=false;
@@ -42,19 +44,22 @@ public class MatchSolo extends JFrame {
             {"You","0"},
             {opponentName,"0"}
         };
-        
-        // người mờ mới gửi START-GAME-SOLO
-        if (isHost) {
-            JsonObject startGameMsg= new JsonObject();
-            startGameMsg.addProperty("type","START-GAME-SOLO");
-            startGameMsg.addProperty("p1Id", myPlayerId);
-            startGameMsg.addProperty("p1Nick", myNickname);
-            startGameMsg.addProperty("p2Id", opponentId);
-            startGameMsg.addProperty("p2Nick", opponentName);
-            this.sendMessage(startGameMsg);
-        }
+        this.isHost = isHost;
         
         initUI();
+    }
+    // Lưu lại vai trò host để gửi sau khi handler đã được gán
+    private boolean isHost = false;
+
+    public void startAsHostIfNeeded() {
+        if (!isHost) return;
+        JsonObject startGameMsg= new JsonObject();
+        startGameMsg.addProperty("type","START-GAME-SOLO");
+        startGameMsg.addProperty("p1Id", myPlayerId);
+        startGameMsg.addProperty("p1Nick", myNickname);
+        startGameMsg.addProperty("p2Id", opponentId);
+        startGameMsg.addProperty("p2Nick", opponentName);
+        this.sendMessage(startGameMsg);
     }
     
     public void setMainFrame(MainFrame mainFrame) {
@@ -112,11 +117,18 @@ public class MatchSolo extends JFrame {
                     String status2 = player2Score.get("status").getAsString();
                      // nhay sang giao dien ket qua tran dau
                     SwingUtilities.invokeLater(() -> {
-                        // Tạo và hiển thị giao diện kết quả
+                        // Dừng mọi timer để tránh gửi timeout sau khi đã rời phòng
+                        if (timerTimeout != null) {
+                            try { timerTimeout.stop(); } catch (Exception ignore) {}
+                        }
                         KetQuaMatchSolo ketQuaFrame = new KetQuaMatchSolo(
-                            tcp,nickname1Score, score1, status1,nickname2Score, score2, status2, myNickname
+                            tcp,nickname1Score, score1, status1,nickname2Score, score2, status2, myNickname,myPlayerId,opponentId
                         );
                         ketQuaFrame.setMainFrame(mainFrame);
+                        // Chuyển handler về MainFrame để nhận INVITE-SOLO khi đang ở màn hình kết quả
+                        if (mainFrame != null) {
+                            client.ClientApp.setMessageHandler(mainFrame::handleLine);
+                        }
                         ketQuaFrame.setVisible(true);
                         dispose();
                     });
@@ -150,11 +162,8 @@ public class MatchSolo extends JFrame {
     private void showCountdownBeforeQuestion(String round, String question) {
         SwingUtilities.invokeLater(() -> {
             roundLabel.setText("Round " + round);
-            // checkSendAnswer đã được reset ở trên khi nhận QUESTION message
-            
             // Sử dụng lại hàm setTimeDown để đếm ngược 4 giây
             setTimeDownWithText(timeLabel, 4, () -> {
-                // Sau khi đếm ngược xong, hiển thị câu hỏi thực tế
                 SwingUtilities.invokeLater(() -> {
                     questionLabel.setText(question);
                     System.out.println("Hiển thị câu hỏi: " + question);
@@ -186,7 +195,7 @@ public class MatchSolo extends JFrame {
         });
     }
     
-    // Hàm mới để đếm ngược với text
+    // Hàm để đếm ngược với text
     public void setTimeDownWithText(JLabel timeLabel, int second, Runnable onFinish, String prefixText) {
         final int[] timeDown = {second};
         Timer t = new Timer(1000, e -> {
@@ -216,7 +225,7 @@ public class MatchSolo extends JFrame {
         setLocationRelativeTo(null);
         getContentPane().setBackground(new Color(245, 247, 250));
         
-        // Thêm WindowListener để xử lý việc đóng cửa sổ
+        //xử lý việc đóng cửa sổ
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -340,6 +349,18 @@ public class MatchSolo extends JFrame {
         this.answerField = new JTextField();
         answerField.setPreferredSize(new Dimension(360, 32));
         answerField.setMaximumSize(new Dimension(360, 32));
+        
+        // Thêm sự kiện bấm phím Enter cho ô nhập câu trả lời
+        answerField.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER && btnSend.isEnabled()) {
+                    // Gọi sự kiện gửi câu trả lời
+                    sendAnswer();
+                }
+            }
+        });
+        
         this.btnSend = new JButton("Gửi");
         btnSend.setBackground(new Color(32, 88, 110));
         btnSend.setForeground(Color.WHITE);
@@ -358,24 +379,7 @@ public class MatchSolo extends JFrame {
         agc.gridx = 2; agc.gridy = 0; agc.weightx = 0; agc.fill = GridBagConstraints.NONE;
         answerPanel.add(btnSend, agc);
 
-        btnSend.addActionListener(e -> {
-            // Xử lý khi nhấn nút Gửi
-            String answer = answerField.getText();
-            // Cho phép gửi cả câu trả lời rỗng
-            if (tcp != null) {
-                JsonObject answerMsg = new JsonObject();
-                answerMsg.addProperty("type", "ANSWER_PLAYER_SOLO");
-                answerMsg.addProperty("answer", answer);
-                answerMsg.addProperty("playerId", myPlayerId);
-                answerMsg.addProperty("opponentId", opponentId);
-                answerMsg.addProperty("matchId", matchId);
-                answerMsg.addProperty("round", currentRound);
-                checkSendAnswer = true; 
-                sendMessage(answerMsg);                                                  
-            }           
-            answerField.setText("");
-            allowAnswer(false);                
-        });
+        btnSend.addActionListener(e -> sendAnswer());
         
         // Khởi tạo trạng thái ban đầu
         allowAnswer(false);
@@ -414,10 +418,42 @@ public class MatchSolo extends JFrame {
         add(topPanel, BorderLayout.NORTH);
         add(mainPanel, BorderLayout.CENTER);
     }
+    
+    private void sendAnswer() {
+        // Xử lý khi gửi câu trả lời (từ nút hoặc phím Enter)
+        String answer = answerField.getText();
+        // Cho phép gửi cả câu trả lời rỗng
+        if (tcp != null) {
+            if (matchId <= 0) {
+                // Match chưa sẵn sàng, bỏ qua gửi để tránh server nhận matchId=0
+                answerField.setText("");
+                allowAnswer(false);
+                return;
+            }
+            JsonObject answerMsg = new JsonObject();
+            answerMsg.addProperty("type", "ANSWER_PLAYER_SOLO");
+            answerMsg.addProperty("answer", answer);
+            answerMsg.addProperty("playerId", myPlayerId);
+            answerMsg.addProperty("opponentId", opponentId);
+            answerMsg.addProperty("matchId", matchId);
+            answerMsg.addProperty("round", currentRound);
+            checkSendAnswer = true; 
+            sendMessage(answerMsg);                                                  
+        }           
+        answerField.setText("");
+        allowAnswer(false);
+    }
+    
     private void allowAnswer(boolean allow){
         answerField.setEditable(allow);
         btnSend.setEnabled(allow);
-
+        
+        // Nếu cho phép trả lời, tự động focus vào ô text
+        if (allow) {
+            SwingUtilities.invokeLater(() -> {
+                answerField.requestFocusInWindow();
+            });
+        }
     }
     public void setTimeDown(JLabel timeLabel,int second, Runnable onFinish,String type){
         final int [] timeDown={second};

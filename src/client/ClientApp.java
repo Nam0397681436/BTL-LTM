@@ -10,17 +10,16 @@ public class ClientApp {
     private static volatile Consumer<String> messageHandler; // handler hiện tại của UI
     private static Thread rxThread; // Luồng đọc từ server
 
-    /** Cho UI (MainFrame...) đăng ký nơi nhận message từ server. */
+
     public static void setMessageHandler(Consumer<String> handler) {
         messageHandler = handler;
     }
 
-    /** Cho UI truy cập TcpClient nếu cần (gửi thủ công). */
+
     public static TcpClient tcp() {
         return TCP;
     }
 
-    /** Tạo kết nối mới hoặc tái kết nối */
     public static boolean connectToServer() {
         try {
             // Đóng kết nối cũ nếu có
@@ -28,21 +27,19 @@ public class ClientApp {
                 TCP.close();
             }
             
-            // Tạo kết nối mới
             TCP = new client.net.TcpClient();
             TCP.connect();
             
-            // Khởi động lại luồng đọc nếu cần
             startReaderThread();
             
             return true;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             System.err.println("[CONNECT] Failed to connect: " + e.getMessage());
             return false;
         }
     }
 
-    /** Khởi động luồng đọc từ server */
     private static void startReaderThread() {
         if (rxThread != null && rxThread.isAlive()) {
             return; // Luồng đã chạy
@@ -86,7 +83,7 @@ public class ClientApp {
     }
 
     public static void main(String[] args) {
-        // 1) Kết nối TCP
+        // Kết nối TCP
         if (!connectToServer()) {
             SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
                     null,
@@ -97,7 +94,7 @@ public class ClientApp {
             return;
         }
 
-        // 2) Mở UI đăng nhập
+        //Mở UI đăng nhập
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
@@ -105,7 +102,7 @@ public class ClientApp {
             }
         });
 
-        // 3) Đóng gói dọn dẹp khi app thoát
+        //Đóng gói dọn dẹp khi app thoát
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 if (TCP != null) {

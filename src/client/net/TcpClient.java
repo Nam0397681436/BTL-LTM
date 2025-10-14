@@ -30,7 +30,7 @@ public class TcpClient {
         if (socket == null || socket.isClosed())
             throw new IOException("Not connected");
         out.write(jsonLine);
-        out.write("\n"); // NDJSON
+        out.write("\n");
         out.flush();
     }
 

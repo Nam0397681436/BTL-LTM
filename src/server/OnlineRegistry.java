@@ -14,8 +14,6 @@ public class OnlineRegistry {
     private static final Map<String, Player> ONLINE = new ConcurrentHashMap<>();
     private static final Map<String, ClientHandler> SESSIONS = new ConcurrentHashMap<>();
 
-    /* ================== Session mapping ================== */
-
     public static Collection<Player> getAllPlayers() {
         return ONLINE.values();
     }
@@ -76,9 +74,6 @@ public class OnlineRegistry {
         }
     }
 
-    /* ================== Online set ================== */
-
-    /** Thêm (hoặc cập nhật) 1 người chơi là online và thông báo những người khác */
     public static void add(Player p) {
         if (p == null || p.getPlayerId() == null)
             return;
@@ -86,7 +81,6 @@ public class OnlineRegistry {
         broadcastOnlineAdd(p);
     }
 
-    /** Xoá một người chơi khỏi online và thông báo những người khác */
     public static void remove(String playerId) {
         if (playerId == null)
             return;
@@ -95,15 +89,10 @@ public class OnlineRegistry {
         SESSIONS.remove(playerId);
     }
 
-    /** Danh sách Player đang online (snapshot an toàn) */
     public static Collection<Player> onlinePlayers() {
         return new ArrayList<>(ONLINE.values());
     }
 
-    /**
-     * Cập nhật trạng thái của player:
-     * Sau đó broadcast toàn bộ danh sách online hiện tại cho tất cả client.
-     */
 
     public static void changeStatus(String playerId, PlayerStatus status) {
         if (playerId == null || status == null)
@@ -118,9 +107,13 @@ public class OnlineRegistry {
     public static void updateStatus(Player player, String status) {
         if (player == null || player.getPlayerId() == null)
             return;
+        Player p = ONLINE.get(player.getPlayerId());
         switch (status) {
             case "online":
-                add(player);
+                add(player);       
+                if (p != null) {
+                    p.setStatus(PlayerStatus.ONLINE);
+                }
                 break;
 
             case "offline":
@@ -128,7 +121,6 @@ public class OnlineRegistry {
                 break;
 
             case "in_game":
-                Player p = ONLINE.get(player.getPlayerId());
                 if (p != null) {
                     p.setStatus(PlayerStatus.IN_GAME);
                 }
@@ -140,12 +132,6 @@ public class OnlineRegistry {
         broadcastOnlineList();
     }
 
-    /* ================== Broadcast helpers ================== */
-
-    /**
-     * Gửi snapshot toàn bộ danh sách ONLINE hiện tại cho một client cụ thể (loại
-     * bản thân khỏi danh sách).
-     */
     public static void sendOnlineSnapshotTo(String targetPlayerId) {
         ClientHandler target = SESSIONS.get(targetPlayerId);
         if (target == null)
@@ -200,8 +186,6 @@ public class OnlineRegistry {
             }
         }
     }
-
-    /* ================== Payload builders ================== */
 
     /** Tạo payload ONLINE_LIST; excludeId: loại người này khỏi danh sách */
     private static JsonObject buildOnlineListPayload(String excludeId) {

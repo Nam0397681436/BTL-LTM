@@ -6,6 +6,8 @@ import com.google.gson.JsonObject;
 import java.util.Random;
 import dao.PlayerMatchDAO;
 import dao.MatchDAO;
+import server.OnlineRegistry;
+import dao.PlayerDAO;
 public class HandelMatchSolo extends Match {
     private int roundHienTai = 0;
     private String questionRoundHienTai = "";
@@ -73,7 +75,11 @@ public class HandelMatchSolo extends Match {
         }       
         this.roundHienTai++;
         if(this.roundHienTai > 24){
-            return this.ketThucTranDau();
+           String player1Id= this.getPlayerMatches().get(0).getPlayerId();
+           String player2Id=this.getPlayerMatches().get(1).getPlayerId();
+           OnlineRegistry.updateStatus(OnlineRegistry.getPlayer(player1Id),"online");
+           OnlineRegistry.updateStatus(OnlineRegistry.getPlayer(player2Id), "online");
+           return this.ketThucTranDau();
         }
         this.questionRoundHienTai= generateQuestion(this.getLengthByRound(this.roundHienTai));
         this.timeHienThiQuestion=generateTimeShowQuestion(this.roundHienTai);       
@@ -98,7 +104,7 @@ public class HandelMatchSolo extends Match {
         return this.roundHienTai;
     }
 
-    public String generateQuestion(int length) {
+    public synchronized String generateQuestion(int length) {
         Random random = new Random();
         String aphal = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         String question = "";
@@ -197,28 +203,36 @@ public class HandelMatchSolo extends Match {
         // Lưu điểm thực tế trước khi tính kết quả
         int player1RealScore = this.getPlayerMatches().get(0).getScore();
         int player2RealScore = this.getPlayerMatches().get(1).getScore();
+
+        PlayerDAO playerDAO = new PlayerDAO();
         
-        if (player1RealScore > player2RealScore) {
-             this.getPlayerMatches().get(0).setStatus("WIN");
-             this.getPlayerMatches().get(0).setScore(5);
-             this.getPlayerMatches().get(1).setStatus("LOSE");
-             this.getPlayerMatches().get(1).setScore(-3);
+        try {
+            if (player1RealScore > player2RealScore) {
+                 this.getPlayerMatches().get(0).setStatus("WIN");
+                 playerDAO.addScoreAndWins(this.getPlayerMatches().get(0).getPlayerId(),5, 1);      
+                 this.getPlayerMatches().get(1).setStatus("LOSE");
+                 playerDAO.addScoreAndWins(this.getPlayerMatches().get(1).getPlayerId(),-3, 0);
         } 
         else if (player1RealScore == player2RealScore) {
             this.getPlayerMatches().get(0).setStatus("DRAW");
-            this.getPlayerMatches().get(0).setScore(0);
-            this.getPlayerMatches().get(1).setScore(0);
             this.getPlayerMatches().get(1).setStatus("DRAW");
         }
         // lưu kết quả trận đấu vào database
         PlayerMatchDAO playerMatchDAO = new PlayerMatchDAO();
         for (PlayerMatch playerMatch : this.getPlayerMatches()) {
+            if(playerMatch.getScore()<0){
+                playerMatch.setScore(playerRealScoreExited);
+            }
             playerMatchDAO.create(playerMatch, this.getMatchId());
-        }
+        }     
         // luu thong tin tran dau vao database
         MatchDAO matchDAO = new MatchDAO();
         matchDAO.endMatch(this);
-
+        } catch (Exception e) {
+            System.err.println("Lỗi lưu dữ liệu game: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
         // gui ket qua trận đấu về client
         JsonObject ketQuaTranDau = new JsonObject();
         ketQuaTranDau.addProperty("type", "KETQUA_TRANDAU");

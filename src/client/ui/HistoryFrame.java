@@ -8,30 +8,21 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 
-/**
- * Frame/JDialog xem lịch sử đấu.
- * Có 2 API nạp dữ liệu: load(JsonArray) và setData(List<Object[]>).
- */
+
 public class HistoryFrame extends JDialog {
 
     private JTable tblHistory;
     private DefaultTableModel model;
 
-    /* ===== Constructors ===== */
     public HistoryFrame(Frame owner, boolean modal) {
         super(owner, "Lịch sử đấu", modal);
         initUI();
     }
-
-    /** Constructor mặc định (modal=true). */
     public HistoryFrame() {
         super((Frame) null, "Lịch sử đấu", true);
         initUI();
     }
 
-    /* ===== Public APIs để MainFrame gọi ===== */
-
-    /** Nạp dữ liệu từ JSON server gửi (type=HISTORY). */
     public void load(JsonArray rows) {
         model.setRowCount(0);
         for (int i = 0; i < rows.size(); i++) {
@@ -48,13 +39,12 @@ public class HistoryFrame extends JDialog {
         }
     }
 
-    /** Nạp dữ liệu dạng bảng sẵn. Mỗi Object[] là 1 dòng. */
+    //Nạp dữ liệu dạng bảng sẵn. Mỗi Object[] là 1 dòng
     public void setData(List<Object[]> table) {
         model.setRowCount(0);
         for (Object[] r : table) model.addRow(r);
     }
 
-    /* ===== UI ===== */
     private void initUI() {
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(780, 460);

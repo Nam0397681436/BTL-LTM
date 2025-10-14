@@ -34,7 +34,6 @@ public class LoginFrame extends JFrame {
         ClientApp.setMessageHandler(this::handleLine); // handler mặc định
     }
 
-    /* ==================== UI mới cho màn Đăng nhập ==================== */
     private void renderLoginUI() {
         // Kích thước đồng bộ
         final int LABEL_W = 110;
@@ -131,7 +130,7 @@ public class LoginFrame extends JFrame {
         try {
             setWaiting(true);
             if (timeoutTimer != null) timeoutTimer.stop();
-            timeoutTimer = new Timer(15000, ev -> { // Tăng timeout lên 15 giây
+            timeoutTimer = new Timer(15000, ev -> { // timeout 15 giây
                 setWaiting(false);
                 JOptionPane.showMessageDialog(this, "Server không phản hồi. Vui lòng thử lại.",
                         "Lỗi mạng", JOptionPane.ERROR_MESSAGE);
@@ -147,8 +146,6 @@ public class LoginFrame extends JFrame {
                     "Lỗi mạng", JOptionPane.ERROR_MESSAGE);
         }
     }
-
-    /** Kiểm tra kết nối còn sống không */
     private boolean isConnectionAlive() {
         return tcp != null && tcp.isConnected();
     }
@@ -174,7 +171,7 @@ public class LoginFrame extends JFrame {
                             MainFrame main = new MainFrame(tcp, myId, nick, this);
                             ClientApp.setMessageHandler(main::handleLine);
                             main.setVisible(true);
-                            setVisible(false); // Ẩn LoginFrame thay vì dispose
+                            this.dispose(); // Đóng LoginFrame hoàn toàn
                         } catch (Throwable t) {
                             t.printStackTrace();
                             JOptionPane.showMessageDialog(this,
@@ -187,17 +184,16 @@ public class LoginFrame extends JFrame {
         } catch (Exception ignore) {}
     }
 
-    /* ======= Điều hướng sang Register ======= */
     private void switchToRegister() {
         if (regEmbedded == null) {
             regEmbedded = RegisterFrame.createEmbedded(
                     tcp,
-                    (playerId, nickname) -> {   // onSuccess: mở MainFrame
+                    (playerId, nickname) -> {   // onSuccess: mở MainFrame  
                         try {
                             MainFrame main = new MainFrame(tcp, playerId, nickname, this);
                             ClientApp.setMessageHandler(main::handleLine);
                             main.setVisible(true);
-                            setVisible(false); // Ẩn LoginFrame thay vì dispose
+                            this.dispose(); // Đóng LoginFrame hoàn toàn
                         } catch (Throwable t) {
                             t.printStackTrace();
                             JOptionPane.showMessageDialog(this,

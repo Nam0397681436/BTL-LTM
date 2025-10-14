@@ -3,15 +3,28 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/server/MatchOn.java</file>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/dao/MatchDAO.java</file>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/server/JsonUtil.java</file>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/dao/DAO.java</file>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/client/ui/MainFrame.java</file>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/client/ui/MatchSolo.java</file>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/server/ClientHandler.java</file>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/server/ServerMain.java</file>
-            <file>file:/D:/PTIT/Lap%20trinh%20mang/Test/brachDuc1/BTL-LTM/src/client/ClientApp.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/server/ServerMain.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/net/TcpClient.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ClientApp.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/dao/DAO.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/model/HandelMatchSolo.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/model/Match.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/model/PlayerMatch.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/model/HandelMatchMulti.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/server/ClientHandler.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/FindUserFrame.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/server/OnlineRegistry.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/JsonUtil.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/GameWindowMultiplayerFrame.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/HistoryFrame.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/KetQuaMatchSolo.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/LoginFrame.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/MainFrame.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/MatchSolo.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/MultiplayerRoomFrame.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/client/ui/RegisterFrame.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/server/JsonUtil.java</file>
+            <file>file:/D:/PTIT/Lap%20trinh%20mang/BTL-LTM-final/src/server/MatchOn.java</file>
         </group>
     </open-files>
 </project-private>
